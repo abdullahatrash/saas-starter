@@ -55,7 +55,7 @@ export async function createPrediction(input: NanoBananaInput): Promise<Replicat
 		const prediction = await response.json()
 
 		if (prediction?.error) {
-			throw new Error(prediction.error)
+			throw new Error(JSON.stringify(prediction.error))
 		}
 
 		console.log('Prediction created successfully:', prediction.id)
@@ -64,7 +64,7 @@ export async function createPrediction(input: NanoBananaInput): Promise<Replicat
 			id: prediction.id,
 			status: prediction.status as any,
 			output: prediction.output as any,
-			error: prediction.error,
+			error: prediction.error ? JSON.stringify(prediction.error) : undefined,
 			logs: prediction.logs,
 			metrics: prediction.metrics as any,
 		}
@@ -89,14 +89,14 @@ export async function getPrediction(predictionId: string): Promise<ReplicatePred
 		const prediction = await replicate.predictions.get(predictionId)
 		
 		if (prediction?.error) {
-			throw new Error(prediction.error)
+			throw new Error(JSON.stringify(prediction.error))
 		}
 		
 		return {
 			id: prediction.id,
 			status: prediction.status as any,
 			output: prediction.output as any,
-			error: prediction.error,
+			error: prediction.error ? JSON.stringify(prediction.error) : undefined,
 			logs: prediction.logs,
 			metrics: prediction.metrics as any,
 		}

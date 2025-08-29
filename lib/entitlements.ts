@@ -91,7 +91,10 @@ export async function recordPayment(data: {
 	status: 'pending' | 'succeeded' | 'failed'
 	metadata?: any
 }): Promise<void> {
-	await db.insert(payments).values(data)
+	await db.insert(payments).values({
+		...data,
+		amount: data.amount.toString()
+	})
 }
 
 export async function updatePaymentStatus(
