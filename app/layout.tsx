@@ -6,14 +6,14 @@ import { SWRConfig } from 'swr';
 
 export const metadata: Metadata = {
   title: {
-    default: 'TattooPreview - AI Tattoo Preview Generator for Artists',
-    template: '%s | TattooPreview'
+    default: 'TattoosTry - Try Tattoos Before You Ink | AI Tattoo Preview',
+    template: '%s | TattoosTry'
   },
-  description: 'Generate photorealistic tattoo previews in seconds. Upload a photo and design, get instant AI-powered previews. Perfect for tattoo artists and studios. Try 3 free previews!',
-  keywords: ['tattoo preview', 'tattoo generator', 'AI tattoo', 'tattoo design', 'tattoo mockup', 'tattoo visualization', 'tattoo artist tools', 'tattoo studio software'],
-  authors: [{ name: 'TattooPreview' }],
-  creator: 'TattooPreview',
-  publisher: 'TattooPreview',
+  description: 'Try tattoos on your skin instantly with AI. Upload a photo and design, get photorealistic previews in seconds. Perfect for tattoo artists and clients. Start with 3 free previews!',
+  keywords: ['tattoos try', 'try tattoos online', 'tattoo preview', 'AI tattoo generator', 'tattoo simulator', 'virtual tattoo try on', 'tattoo design preview', 'tattoo placement tool'],
+  authors: [{ name: 'TattoosTry' }],
+  creator: 'TattoosTry',
+  publisher: 'TattoosTry',
   robots: {
     index: true,
     follow: true,
@@ -28,28 +28,28 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://tattoopreview.com',
-    siteName: 'TattooPreview',
-    title: 'TattooPreview - AI Tattoo Preview Generator',
-    description: 'Generate photorealistic tattoo previews in seconds. Perfect for tattoo artists and studios.',
+    url: 'https://tattoostry.com',
+    siteName: 'TattoosTry',
+    title: 'TattoosTry - Try Tattoos Before You Ink',
+    description: 'Try tattoos on your skin instantly with AI. Get photorealistic previews in seconds.',
     images: [
       {
-        url: '/og-image.png',
+        url: 'https://tattoostry.com/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'TattooPreview - AI Tattoo Preview Generator',
+        alt: 'TattoosTry - AI Powered Tattoo Preview',
       }
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TattooPreview - AI Tattoo Preview Generator',
-    description: 'Generate photorealistic tattoo previews in seconds.',
-    images: ['/twitter-image.png'],
-    creator: '@tattoopreview',
+    title: 'TattoosTry - Try Tattoos Before You Ink',
+    description: 'Try tattoos on your skin instantly with AI. Get photorealistic previews in seconds.',
+    images: ['https://tattoostry.com/twitter-image.png'],
+    creator: '@tattoostry',
   },
   alternates: {
-    canonical: 'https://tattoopreview.com',
+    canonical: 'https://tattoostry.com',
   },
   category: 'technology',
 };

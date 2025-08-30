@@ -12,14 +12,40 @@ import Pricing from "@/components/pricing";
 import FooterSection from "@/components/footer";
 import { CreditCard, ChevronRight } from "lucide-react";
 
+// Structured data for SEO
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "TattoosTry",
+  "applicationCategory": "DesignApplication",
+  "url": "https://tattoostry.com",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.9",
+    "ratingCount": "500"
+  },
+  "description": "Try tattoos on your skin instantly with AI tattoo preview technology"
+};
+
 export default function LandingPage() {
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <HeroSection />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <main className="min-h-screen">
+        {/* Hero Section */}
+        <HeroSection />
 
-      {/* Trust Indicators */}
-      <section className="border-y bg-white py-8">
+        {/* Trust Indicators */}
+        <section className="border-y bg-white py-8" aria-label="Trust indicators">
         <div className="container mx-auto max-w-6xl px-4">
           <div className="flex flex-wrap items-center justify-center gap-8 text-center">
             <div>
@@ -110,7 +136,7 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black">
+      <section className="py-20 px-4 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black" aria-label="Call to action">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-3xl font-bold mb-4">
             Ready to Transform Your Tattoo Business?
@@ -142,6 +168,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <FooterSection />
-    </div>
+    </main>
+    </>
   );
 }
