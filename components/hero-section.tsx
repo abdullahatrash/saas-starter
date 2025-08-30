@@ -24,13 +24,16 @@ export default function HeroSection() {
     }
   }, []);
 
-  const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (href.startsWith('#')) {
+  const handleSmoothScroll = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    if (href.startsWith("#")) {
       e.preventDefault();
       const targetId = href.substring(1);
       const element = document.getElementById(targetId);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
         setMenuState(false); // Close mobile menu after clicking
       }
     }
@@ -48,7 +51,7 @@ export default function HeroSection() {
           muted
           loop
           playsInline
-          poster="https://images.unsplash.com/photo-1598618443855-232ee0f819f6?w=1920&h=1080&fit=crop"
+          poster="https://p9xcezb73lfrkkkg.public.blob.vercel-storage.com/thumbnails/hero-page-video-thumbnail.png"
         >
           <source
             src="https://p9xcezb73lfrkkkg.public.blob.vercel-storage.com/Video/Tattoo_Design_Fade_Transition_Video.mp4"
@@ -91,7 +94,7 @@ export default function HeroSection() {
                   <ul className="space-y-6 text-base lg:flex lg:gap-8 lg:space-y-0 lg:text-sm">
                     {menuItems.map((item, index) => (
                       <li key={index}>
-                        {item.href.startsWith('#') ? (
+                        {item.href.startsWith("#") ? (
                           <a
                             href={item.href}
                             onClick={(e) => handleSmoothScroll(e, item.href)}
@@ -187,13 +190,18 @@ export default function HeroSection() {
                 </div>
 
                 <div className="mt-10">
-                  <div className="mx-auto lg:ml-0 w-fit">
-                    <Link href="/sign-up">
+                  <div className="mx-auto lg:ml-0 w-full max-w-sm sm:max-w-none sm:w-fit">
+                    <Link href="/sign-up" className="block w-full sm:w-auto">
                       <Button
                         size="lg"
-                        className="bg-yellow-400 hover:bg-yellow-500 text-black font-black uppercase tracking-wide px-10 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
+                        className="bg-yellow-400 hover:bg-yellow-500 text-black font-black uppercase tracking-wide px-6 py-6 text-base sm:text-lg shadow-lg hover:shadow-xl transition-all w-full sm:w-auto whitespace-normal sm:whitespace-nowrap"
                       >
-                        Start Your First AI Tattoo Free Preview →
+                        <span className="block sm:hidden">
+                          Start Free Preview →
+                        </span>
+                        <span className="hidden sm:block">
+                          Start Your First AI Tattoo Free Preview →
+                        </span>
                       </Button>
                     </Link>
                   </div>
