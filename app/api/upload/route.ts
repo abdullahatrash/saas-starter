@@ -37,9 +37,10 @@ export async function POST(request: NextRequest) {
 		if (process.env.BLOB_READ_WRITE_TOKEN) {
 			const blob = await put(pathname, file, {
 				access: 'public',
+				contentType: file.type || 'image/jpeg', // Specify the content type
 			})
 			
-			console.log('File uploaded to Vercel Blob:', blob.url)
+			console.log('File uploaded to Vercel Blob:', blob.url, 'Type:', file.type)
 			
 			return NextResponse.json({
 				url: blob.url,

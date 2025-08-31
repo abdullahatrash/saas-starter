@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Slider } from '@/components/ui/slider'
-import { Loader2, Download, Share2, RotateCw, ZoomIn, Eye, AlertCircle } from 'lucide-react'
+import { Loader2, Download, Share2, RotateCw, ZoomIn, Eye, AlertCircle, RefreshCw } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import type { BodyPart, TattooVariant, TattooPromptParams } from '@/types/core'
 import { buildTattooPrompt } from '@/lib/prompt'
@@ -388,6 +388,37 @@ export default function StudioPage() {
 		toast.info('Preview restored')
 	}
 
+	const handleReset = () => {
+		// Clear images
+		setBodyImageUrl(null)
+		setDesignImageUrl(null)
+		if (bodyFiles.length > 0) {
+			removeBodyFile(bodyFiles[0].id)
+		}
+		if (designFiles.length > 0) {
+			removeDesignFile(designFiles[0].id)
+		}
+		
+		// Reset settings to defaults
+		setSelectedPart('arm')
+		setSelectedVariant('black_gray')
+		setScale(100)
+		setRotation(0)
+		setOpacity(100)
+		setPromptRealism('realistic')
+		setPromptBlending('natural')
+		setPromptDetails('')
+		setCustomPrompt('')
+		setUseCustomPrompt(false)
+		setShowGeneratedPrompt(false)
+		
+		// Clear preview result but keep history
+		setPreviewResult(null)
+		setJobId(null)
+		
+		toast.success('Studio reset - ready for new design!')
+	}
+
 	return (
 		<div className='container mx-auto py-8 px-4 pb-24'>
 			<Toaster position="top-center" richColors />
@@ -414,7 +445,20 @@ export default function StudioPage() {
 				<div className='space-y-6'>
 					{/* Upload Section with new component */}
 					<Card className='p-6'>
-						<h2 className='text-xl font-semibold mb-4'>Upload Images</h2>
+						<div className='flex items-center justify-between mb-4'>
+							<h2 className='text-xl font-semibold'>Upload Images</h2>
+							{(bodyImageUrl || designImageUrl) && (
+								<Button
+									variant='outline'
+									size='sm'
+									onClick={handleReset}
+									className='text-sm'
+								>
+									<RefreshCw className='w-4 h-4 mr-1' />
+									Reset
+								</Button>
+							)}
+						</div>
 						
 						<div className='space-y-4'>
 							{/* Body Photo Upload */}
@@ -913,7 +957,18 @@ export default function StudioPage() {
 						</div>
 
 						{/* Generate Button */}
-						<div className='flex items-center gap-3'>
+						<div className='flex items-center gap-2'>
+							{(bodyImageUrl || designImageUrl) && !isGenerating && (
+								<Button
+									variant='ghost'
+									size='lg'
+									onClick={handleReset}
+									className='px-3'
+									title='Start over with new images'
+								>
+									<RefreshCw className='h-4 w-4' />
+								</Button>
+							)}
 							{isGenerating && (
 								<div className='hidden sm:block w-32'>
 									<Progress value={generationProgress} className='h-2' />

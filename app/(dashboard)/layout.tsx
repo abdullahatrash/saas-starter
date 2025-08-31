@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { use, useState, Suspense } from 'react';
-import { Button } from '@/components/ui/button';
-import { Home, LogOut, Palette, Coins, Crown } from 'lucide-react';
+import Link from "next/link";
+import { use, useState, Suspense } from "react";
+import { Button } from "@/components/ui/button";
+import { Home, LogOut, Palette, Coins, Crown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { signOut } from '@/app/(login)/actions';
-import { useRouter } from 'next/navigation';
-import { User } from '@/lib/db/schema';
-import useSWR, { mutate } from 'swr';
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { signOut } from "@/app/(login)/actions";
+import { useRouter } from "next/navigation";
+import { User } from "@/lib/db/schema";
+import useSWR, { mutate } from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 function CreditsDisplay() {
-  const { data: dashboard } = useSWR('/api/user/dashboard', fetcher);
-  
+  const { data: dashboard } = useSWR("/api/user/dashboard", fetcher);
+
   if (!dashboard) {
     return null;
   }
@@ -34,23 +34,34 @@ function CreditsDisplay() {
           {dashboard.credits || 0} Credits
         </span>
       </div>
-      
+
       {/* Plan Badge */}
-      {(dashboard.subscription?.isActive || dashboard.subscription?.hasCredits) && (
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
-          dashboard.subscription?.isActive 
-            ? 'bg-purple-500/10 border-purple-500/20' 
-            : 'bg-green-500/10 border-green-500/20'
-        }`}>
-          <Crown className={`h-4 w-4 ${
-            dashboard.subscription?.isActive ? 'text-purple-400' : 'text-green-400'
-          }`} />
-          <span className={`text-sm font-medium ${
-            dashboard.subscription?.isActive ? 'text-purple-400' : 'text-green-400'
-          }`}>
-            {dashboard.subscription?.planType === 'subscription' 
-              ? dashboard.subscription.type 
-              : 'Pay As You Go'}
+      {(dashboard.subscription?.isActive ||
+        dashboard.subscription?.hasCredits) && (
+        <div
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
+            dashboard.subscription?.isActive
+              ? "bg-purple-500/10 border-purple-500/20"
+              : "bg-green-500/10 border-green-500/20"
+          }`}
+        >
+          <Crown
+            className={`h-4 w-4 ${
+              dashboard.subscription?.isActive
+                ? "text-purple-400"
+                : "text-green-400"
+            }`}
+          />
+          <span
+            className={`text-sm font-medium ${
+              dashboard.subscription?.isActive
+                ? "text-purple-400"
+                : "text-green-400"
+            }`}
+          >
+            {dashboard.subscription?.planType === "subscription"
+              ? dashboard.subscription.type
+              : "Pay As You Go"}
           </span>
         </div>
       )}
@@ -60,13 +71,13 @@ function CreditsDisplay() {
 
 function UserMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { data: user } = useSWR<User>('/api/user', fetcher);
+  const { data: user } = useSWR<User>("/api/user", fetcher);
   const router = useRouter();
 
   async function handleSignOut() {
     await signOut();
-    mutate('/api/user');
-    router.push('/');
+    mutate("/api/user");
+    router.push("/");
   }
 
   if (!user) {
@@ -78,7 +89,10 @@ function UserMenu() {
         >
           Pricing
         </Link>
-        <Button asChild className="bg-yellow-400 text-black hover:bg-yellow-500 rounded-full">
+        <Button
+          asChild
+          className="bg-yellow-400 text-black hover:bg-yellow-500 rounded-full"
+        >
           <Link href="/sign-up">Sign Up</Link>
         </Button>
       </>
@@ -88,11 +102,14 @@ function UserMenu() {
   return (
     <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0 hover:bg-yellow-400/20">
+        <Button
+          variant="ghost"
+          className="relative h-9 w-9 rounded-full p-0 hover:bg-yellow-400/20"
+        >
           <Avatar className="cursor-pointer size-9">
-            <AvatarImage alt={user.name || ''} />
+            <AvatarImage alt={user.name || ""} />
             <AvatarFallback className="bg-yellow-400 text-black">
-              {user.email?.charAt(0).toUpperCase() || 'U'}
+              {user.email?.charAt(0).toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
         </Button>
@@ -129,11 +146,15 @@ function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
         <Link href="/" className="flex items-center">
           <span className="text-2xl font-black text-yellow-400 uppercase tracking-tight">
-            TattooAI
+            Tattoostry
           </span>
         </Link>
         <div className="flex items-center space-x-4">
-          <Suspense fallback={<div className="h-9 w-9 bg-yellow-400/20 rounded-full animate-pulse" />}>
+          <Suspense
+            fallback={
+              <div className="h-9 w-9 bg-yellow-400/20 rounded-full animate-pulse" />
+            }
+          >
             <CreditsDisplay />
             <UserMenu />
           </Suspense>

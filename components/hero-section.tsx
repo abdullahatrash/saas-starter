@@ -178,7 +178,7 @@ export default function HeroSection() {
                   className="flex items-center space-x-2"
                 >
                   <span className="text-2xl font-black text-yellow-400 uppercase tracking-tight">
-                    TattooAI
+                    Tattoostry
                   </span>
                 </Link>
 
