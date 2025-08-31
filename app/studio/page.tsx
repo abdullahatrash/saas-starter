@@ -5,9 +5,18 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Upload, Loader2, Download, Share2, RotateCw, ZoomIn, Eye } from 'lucide-react'
+import { Slider } from '@/components/ui/slider'
+import { Loader2, Download, Share2, RotateCw, ZoomIn, Eye, AlertCircle } from 'lucide-react'
+import { Toaster, toast } from 'sonner'
 import type { BodyPart, TattooVariant, TattooPromptParams } from '@/types/core'
 import { buildTattooPrompt } from '@/lib/prompt'
+import { useFileUpload, formatBytes } from '@/hooks/use-file-upload'
+import { compressImage, validateImageFile, downloadImage, copyToClipboard } from '@/lib/image-utils'
+import { STUDIO_ERROR_MESSAGES, STUDIO_SUCCESS_MESSAGES, STUDIO_INFO_MESSAGES } from '@/lib/studio-errors'
+import { ImageZoom } from '@/components/ui/kibo-ui/image-zoom'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { Progress } from '@/components/ui/progress'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const bodyParts: Array<{ value: BodyPart; label: string }> = [
 	{ value: 'arm', label: 'Arm' },
@@ -29,8 +38,8 @@ const variants: Array<{ value: TattooVariant; label: string }> = [
 ]
 
 export default function StudioPage() {
-	const [bodyImage, setBodyImage] = useState<string | null>(null)
-	const [designImage, setDesignImage] = useState<string | null>(null)
+	const [bodyImageUrl, setBodyImageUrl] = useState<string | null>(null)
+	const [designImageUrl, setDesignImageUrl] = useState<string | null>(null)
 	const [selectedPart, setSelectedPart] = useState<BodyPart>('arm')
 	const [selectedVariant, setSelectedVariant] = useState<TattooVariant>('black_gray')
 	const [scale, setScale] = useState(100)
@@ -41,9 +50,48 @@ export default function StudioPage() {
 	const [generatedPrompt, setGeneratedPrompt] = useState('')
 	const [showGeneratedPrompt, setShowGeneratedPrompt] = useState(false)
 	const [isGenerating, setIsGenerating] = useState(false)
+	const [isUploading, setIsUploading] = useState(false)
+	const [uploadProgress, setUploadProgress] = useState(0)
 	const [previewResult, setPreviewResult] = useState<string | null>(null)
 	const [jobId, setJobId] = useState<number | null>(null)
 	const [credits, setCredits] = useState<number | null>(null)
+	const [generationProgress, setGenerationProgress] = useState(0)
+	const [recentPreviews, setRecentPreviews] = useState<Array<{ id: number; url: string; createdAt: Date }>>([])
+
+	// File upload hooks for body and design images
+	const [
+		{ files: bodyFiles, isDragging: bodyDragging, errors: bodyErrors },
+		{
+			handleDragEnter: bodyDragEnter,
+			handleDragLeave: bodyDragLeave,
+			handleDragOver: bodyDragOver,
+			handleDrop: bodyDrop,
+			openFileDialog: openBodyDialog,
+			removeFile: removeBodyFile,
+			getInputProps: getBodyInputProps,
+		},
+	] = useFileUpload({
+		accept: 'image/jpeg,image/jpg,image/png,image/webp',
+		maxSize: 10 * 1024 * 1024, // 10MB
+		multiple: false,
+	})
+
+	const [
+		{ files: designFiles, isDragging: designDragging, errors: designErrors },
+		{
+			handleDragEnter: designDragEnter,
+			handleDragLeave: designDragLeave,
+			handleDragOver: designDragOver,
+			handleDrop: designDrop,
+			openFileDialog: openDesignDialog,
+			removeFile: removeDesignFile,
+			getInputProps: getDesignInputProps,
+		},
+	] = useFileUpload({
+		accept: 'image/jpeg,image/jpg,image/png,image/webp',
+		maxSize: 10 * 1024 * 1024, // 10MB
+		multiple: false,
+	})
 
 	// Generate prompt preview when parameters change
 	useEffect(() => {
@@ -59,49 +107,124 @@ export default function StudioPage() {
 		}
 	}, [selectedPart, selectedVariant, scale, rotation, opacity, useCustomPrompt])
 
+	// Handle file uploads when files change
+	useEffect(() => {
+		if (bodyFiles.length > 0 && !bodyImageUrl) {
+			handleFileUpload(bodyFiles[0].file as File, 'body')
+		}
+	}, [bodyFiles])
+
+	useEffect(() => {
+		if (designFiles.length > 0 && !designImageUrl) {
+			handleFileUpload(designFiles[0].file as File, 'design')
+		}
+	}, [designFiles])
+
 	const handleFileUpload = useCallback(
 		async (file: File, type: 'body' | 'design') => {
-			const formData = new FormData()
-			formData.append('file', file)
+			// Validate file
+			const validation = validateImageFile(file)
+			if (!validation.valid) {
+				toast.error(validation.error)
+				return
+			}
+
+			setIsUploading(true)
+			setUploadProgress(0)
 
 			try {
+				// Show compression toast
+				const compressionToast = toast.loading(STUDIO_INFO_MESSAGES.COMPRESSING)
+				
+				// Compress image
+				const compressedFile = await compressImage(file, {
+					maxSizeMB: 2,
+					maxWidthOrHeight: 2048,
+					onProgress: (progress) => {
+						setUploadProgress(progress * 50) // First 50% for compression
+					},
+				})
+
+				toast.dismiss(compressionToast)
+				
+				// Upload compressed file
+				const uploadToast = toast.loading(STUDIO_INFO_MESSAGES.UPLOADING)
+				setUploadProgress(50)
+
+				const formData = new FormData()
+				formData.append('file', compressedFile)
+
 				const response = await fetch('/api/upload', {
 					method: 'POST',
 					body: formData,
 				})
 
-				if (!response.ok) throw new Error('Upload failed')
+				setUploadProgress(100)
+				toast.dismiss(uploadToast)
+
+				if (!response.ok) {
+					throw new Error(STUDIO_ERROR_MESSAGES.UPLOAD_FAILED)
+				}
 
 				const { url } = await response.json()
+				
 				if (type === 'body') {
-					setBodyImage(url)
+					setBodyImageUrl(url)
 				} else {
-					setDesignImage(url)
+					setDesignImageUrl(url)
 				}
+				
+				toast.success(STUDIO_SUCCESS_MESSAGES.UPLOAD_SUCCESS)
 			} catch (error) {
 				console.error('Upload error:', error)
-				alert('Failed to upload image')
+				toast.error(error instanceof Error ? error.message : STUDIO_ERROR_MESSAGES.UPLOAD_FAILED)
+				
+				// Remove the file from the list if upload failed
+				if (type === 'body' && bodyFiles.length > 0) {
+					removeBodyFile(bodyFiles[0].id)
+				} else if (type === 'design' && designFiles.length > 0) {
+					removeDesignFile(designFiles[0].id)
+				}
+			} finally {
+				setIsUploading(false)
+				setUploadProgress(0)
 			}
 		},
-		[]
+		[bodyFiles, designFiles, removeBodyFile, removeDesignFile]
 	)
 
 	const generatePreview = async () => {
-		if (!bodyImage || !designImage) {
-			alert('Please upload both body photo and design')
+		if (!bodyImageUrl || !designImageUrl) {
+			toast.error(STUDIO_ERROR_MESSAGES.MISSING_IMAGES)
 			return
 		}
 
 		setIsGenerating(true)
 		setPreviewResult(null)
+		setGenerationProgress(0)
+
+		// Start progress animation
+		const progressInterval = setInterval(() => {
+			setGenerationProgress(prev => {
+				if (prev >= 90) return 90
+				return prev + 10
+			})
+		}, 3000)
+
+		const generatingToast = toast.loading(
+			<div className="flex flex-col gap-1">
+				<span>{STUDIO_SUCCESS_MESSAGES.GENERATION_STARTED}</span>
+				<span className="text-xs opacity-70">{STUDIO_INFO_MESSAGES.GENERATING}</span>
+			</div>
+		)
 
 		try {
 			const response = await fetch('/api/preview', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					bodyImageUrl: bodyImage,
-					designImageUrl: designImage,
+					bodyImageUrl,
+					designImageUrl,
 					part: selectedPart,
 					variant: selectedVariant,
 					scale: scale / 100,
@@ -114,18 +237,27 @@ export default function StudioPage() {
 			const data = await response.json()
 
 			if (!response.ok) {
+				clearInterval(progressInterval)
+				toast.dismiss(generatingToast)
+				
 				if (response.status === 402) {
 					if (data.error?.includes('Replicate')) {
-						alert(data.error)
+						toast.error(data.error)
 					} else {
-						alert(`Insufficient credits. You have ${data.credits} credits remaining.`)
+						toast.error(
+							<div className="flex flex-col gap-1">
+								<span>{STUDIO_ERROR_MESSAGES.CREDITS_INSUFFICIENT}</span>
+								<span className="text-xs">You have {data.credits} credits remaining</span>
+							</div>
+						)
 					}
 				} else if (response.status === 400 && data.error?.includes('localhost')) {
-					alert(`${data.error}\n\n${data.suggestion || ''}`)
+					toast.error(STUDIO_ERROR_MESSAGES.LOCALHOST_ERROR)
 				} else {
-					alert(data.error || 'Generation failed')
+					toast.error(data.error || STUDIO_ERROR_MESSAGES.GENERATION_FAILED)
 				}
 				setIsGenerating(false)
+				setGenerationProgress(0)
 				return
 			}
 
@@ -134,29 +266,109 @@ export default function StudioPage() {
 
 			// Poll for results
 			const pollInterval = setInterval(async () => {
-				const statusResponse = await fetch(`/api/preview/${data.jobId}`)
-				const statusData = await statusResponse.json()
+				try {
+					const statusResponse = await fetch(`/api/preview/${data.jobId}`)
+					const statusData = await statusResponse.json()
 
-				if (statusData.job.status === 'succeeded' && statusData.results.length > 0) {
-					setPreviewResult(statusData.results[0].imageUrl)
-					clearInterval(pollInterval)
-					setIsGenerating(false)
-				} else if (statusData.job.status === 'failed') {
-					clearInterval(pollInterval)
-					setIsGenerating(false)
-					const errorMsg = statusData.job.error || 'Preview generation failed'
-					alert(errorMsg)
+					if (statusData.job.status === 'succeeded' && statusData.results.length > 0) {
+						clearInterval(pollInterval)
+						clearInterval(progressInterval)
+						setGenerationProgress(100)
+						setPreviewResult(statusData.results[0].imageUrl)
+						
+						// Add to recent previews
+						setRecentPreviews(prev => [
+							{ id: data.jobId, url: statusData.results[0].imageUrl, createdAt: new Date() },
+							...prev.slice(0, 3)
+						])
+						
+						toast.dismiss(generatingToast)
+						toast.success(STUDIO_SUCCESS_MESSAGES.GENERATION_COMPLETE)
+						setIsGenerating(false)
+						setGenerationProgress(0)
+					} else if (statusData.job.status === 'failed') {
+						clearInterval(pollInterval)
+						clearInterval(progressInterval)
+						toast.dismiss(generatingToast)
+						
+						const errorMsg = statusData.job.error || STUDIO_ERROR_MESSAGES.GENERATION_FAILED
+						toast.error(
+							<div className="flex flex-col gap-1">
+								<span>{STUDIO_ERROR_MESSAGES.REPLICATE_ERROR}</span>
+								<span className="text-xs opacity-70">{errorMsg}</span>
+							</div>
+						)
+						
+						// Update credits if refunded
+						if (statusData.creditsRefunded) {
+							setCredits(prev => prev !== null ? prev + 1 : prev)
+							toast.info(STUDIO_SUCCESS_MESSAGES.CREDIT_REFUNDED)
+						}
+						
+						setIsGenerating(false)
+						setGenerationProgress(0)
+					}
+				} catch (error) {
+					console.error('Polling error:', error)
 				}
 			}, 2000)
+			
+			// Timeout after 2 minutes
+			setTimeout(() => {
+				if (isGenerating) {
+					clearInterval(pollInterval)
+					clearInterval(progressInterval)
+					toast.dismiss(generatingToast)
+					toast.error('Generation timed out. Please try again.')
+					setIsGenerating(false)
+					setGenerationProgress(0)
+				}
+			}, 120000)
 		} catch (error) {
+			clearInterval(progressInterval)
+			toast.dismiss(generatingToast)
 			console.error('Generation error:', error)
-			alert('Failed to generate preview')
+			toast.error(STUDIO_ERROR_MESSAGES.GENERATION_FAILED)
 			setIsGenerating(false)
+			setGenerationProgress(0)
 		}
+	}
+
+	const handleDownload = async () => {
+		if (!previewResult) return
+		
+		try {
+			const filename = `tattoo-preview-${jobId || Date.now()}.jpg`
+			await downloadImage(previewResult, filename)
+			toast.success(STUDIO_SUCCESS_MESSAGES.IMAGE_DOWNLOADED)
+		} catch (error) {
+			toast.error('Failed to download image')
+		}
+	}
+
+	const handleShare = async () => {
+		if (!jobId) return
+		
+		const shareUrl = `${window.location.origin}/p/${jobId}`
+		
+		try {
+			await copyToClipboard(shareUrl)
+			toast.success(STUDIO_SUCCESS_MESSAGES.LINK_COPIED)
+		} catch (error) {
+			toast.error('Failed to copy link')
+		}
+	}
+
+	const reusePreview = (preview: { id: number; url: string }) => {
+		setPreviewResult(preview.url)
+		setJobId(preview.id)
+		toast.info('Preview restored')
 	}
 
 	return (
 		<div className='container mx-auto py-8 px-4'>
+			<Toaster position="top-center" richColors />
+			
 			<div className='mb-8'>
 				<h1 className='text-3xl font-bold'>Tattoo Preview Studio</h1>
 				<p className='text-gray-600 mt-2'>
@@ -177,152 +389,260 @@ export default function StudioPage() {
 			<div className='grid lg:grid-cols-2 gap-8'>
 				{/* Controls Panel */}
 				<div className='space-y-6'>
-					{/* Upload Section */}
+					{/* Upload Section with new component */}
 					<Card className='p-6'>
 						<h2 className='text-xl font-semibold mb-4'>Upload Images</h2>
 						
 						<div className='space-y-4'>
+							{/* Body Photo Upload */}
 							<div>
-								<Label htmlFor='body-upload'>Body Photo</Label>
+								<Label>Body Photo</Label>
 								<div className='mt-2'>
-									<label
-										htmlFor='body-upload'
-										className='flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400'
+									<div
+										onDragEnter={bodyDragEnter}
+										onDragLeave={bodyDragLeave}
+										onDragOver={bodyDragOver}
+										onDrop={bodyDrop}
+										data-dragging={bodyDragging || undefined}
+										className='border-input data-[dragging=true]:bg-accent/50 relative flex min-h-32 flex-col items-center overflow-hidden rounded-xl border border-dashed p-4 transition-colors justify-center'
 									>
-										{bodyImage ? (
+										<input
+											{...getBodyInputProps()}
+											className='sr-only'
+											aria-label='Upload body photo'
+										/>
+										{bodyImageUrl ? (
 											<img
-												src={bodyImage}
+												src={bodyImageUrl}
 												alt='Body'
-												className='h-full object-contain'
+												className='h-28 object-contain'
 											/>
+										) : isUploading && uploadProgress < 50 ? (
+											<div className='flex flex-col items-center gap-2'>
+												<Loader2 className='h-8 w-8 animate-spin text-gray-400' />
+												<span className='text-sm text-gray-500'>Compressing...</span>
+												<Progress value={uploadProgress} className='w-32' />
+											</div>
 										) : (
 											<div className='flex flex-col items-center'>
-												<Upload className='w-8 h-8 text-gray-400' />
-												<span className='mt-2 text-sm text-gray-500'>
+												<Button variant='outline' onClick={openBodyDialog} disabled={isUploading}>
 													Upload body photo
+												</Button>
+												<span className='mt-2 text-xs text-gray-500'>
+													or drag & drop
 												</span>
 											</div>
 										)}
-										<input
-											id='body-upload'
-											type='file'
-											className='hidden'
-											accept='image/*'
-											onChange={(e) =>
-												e.target.files?.[0] &&
-												handleFileUpload(e.target.files[0], 'body')
-											}
-										/>
-									</label>
+									</div>
+									{bodyErrors.length > 0 && (
+										<div className='text-destructive flex items-center gap-1 text-xs mt-2' role='alert'>
+											<AlertCircle className='size-3 shrink-0' />
+											<span>{bodyErrors[0]}</span>
+										</div>
+									)}
 								</div>
 							</div>
 
+							{/* Design Upload */}
 							<div>
-								<Label htmlFor='design-upload'>Tattoo Design</Label>
+								<Label>Tattoo Design</Label>
 								<div className='mt-2'>
-									<label
-										htmlFor='design-upload'
-										className='flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400'
+									<div
+										onDragEnter={designDragEnter}
+										onDragLeave={designDragLeave}
+										onDragOver={designDragOver}
+										onDrop={designDrop}
+										data-dragging={designDragging || undefined}
+										className='border-input data-[dragging=true]:bg-accent/50 relative flex min-h-32 flex-col items-center overflow-hidden rounded-xl border border-dashed p-4 transition-colors justify-center'
 									>
-										{designImage ? (
+										<input
+											{...getDesignInputProps()}
+											className='sr-only'
+											aria-label='Upload tattoo design'
+										/>
+										{designImageUrl ? (
 											<img
-												src={designImage}
+												src={designImageUrl}
 												alt='Design'
-												className='h-full object-contain'
+												className='h-28 object-contain'
 											/>
+										) : isUploading && uploadProgress >= 50 ? (
+											<div className='flex flex-col items-center gap-2'>
+												<Loader2 className='h-8 w-8 animate-spin text-gray-400' />
+												<span className='text-sm text-gray-500'>Uploading...</span>
+												<Progress value={uploadProgress} className='w-32' />
+											</div>
 										) : (
 											<div className='flex flex-col items-center'>
-												<Upload className='w-8 h-8 text-gray-400' />
-												<span className='mt-2 text-sm text-gray-500'>
+												<Button variant='outline' onClick={openDesignDialog} disabled={isUploading}>
 													Upload tattoo design
+												</Button>
+												<span className='mt-2 text-xs text-gray-500'>
+													or drag & drop
 												</span>
 											</div>
 										)}
-										<input
-											id='design-upload'
-											type='file'
-											className='hidden'
-											accept='image/*'
-											onChange={(e) =>
-												e.target.files?.[0] &&
-												handleFileUpload(e.target.files[0], 'design')
-											}
-										/>
-									</label>
+									</div>
+									{designErrors.length > 0 && (
+										<div className='text-destructive flex items-center gap-1 text-xs mt-2' role='alert'>
+											<AlertCircle className='size-3 shrink-0' />
+											<span>{designErrors[0]}</span>
+										</div>
+									)}
 								</div>
 							</div>
 						</div>
 					</Card>
 
-					{/* Body Part Selection */}
-					<Card className='p-6'>
-						<h2 className='text-xl font-semibold mb-4'>Body Part</h2>
-						<div className='grid grid-cols-3 gap-2'>
-							{bodyParts.map((part) => (
-								<Button
-									key={part.value}
-									variant={selectedPart === part.value ? 'default' : 'outline'}
-									size='sm'
-									onClick={() => setSelectedPart(part.value)}
-								>
-									{part.label}
-								</Button>
-							))}
-						</div>
-					</Card>
+					{/* Mobile-optimized controls */}
+					<div className='lg:hidden'>
+						<Accordion type="single" collapsible defaultValue="params">
+							<AccordionItem value="params">
+								<AccordionTrigger>Customize Your Tattoo</AccordionTrigger>
+								<AccordionContent className='space-y-4'>
+									{/* Body Part Selection */}
+									<div>
+										<Label className='mb-3 block'>Body Part</Label>
+										<div className='grid grid-cols-3 gap-2'>
+											{bodyParts.map((part) => (
+												<Button
+													key={part.value}
+													variant={selectedPart === part.value ? 'default' : 'outline'}
+													size='sm'
+													onClick={() => setSelectedPart(part.value)}
+												>
+													{part.label}
+												</Button>
+											))}
+										</div>
+									</div>
 
-					{/* Style Selection */}
-					<Card className='p-6'>
-						<h2 className='text-xl font-semibold mb-4'>Tattoo Style</h2>
-						<RadioGroup value={selectedVariant} onValueChange={(v) => setSelectedVariant(v as TattooVariant)}>
-							{variants.map((variant) => (
-								<div key={variant.value} className='flex items-center space-x-2'>
-									<RadioGroupItem value={variant.value} id={variant.value} />
-									<Label htmlFor={variant.value}>{variant.label}</Label>
+									{/* Style Selection */}
+									<div>
+										<Label className='mb-3 block'>Tattoo Style</Label>
+										<RadioGroup value={selectedVariant} onValueChange={(v) => setSelectedVariant(v as TattooVariant)}>
+											{variants.map((variant) => (
+												<div key={variant.value} className='flex items-center space-x-2'>
+													<RadioGroupItem value={variant.value} id={variant.value} />
+													<Label htmlFor={variant.value}>{variant.label}</Label>
+												</div>
+											))}
+										</RadioGroup>
+									</div>
+
+									{/* Adjustments */}
+									<div className='space-y-4'>
+										<div>
+											<Label>Scale: {scale}%</Label>
+											<Slider
+												value={[scale]}
+												onValueChange={([v]) => setScale(v)}
+												min={50}
+												max={150}
+												step={5}
+												className='mt-2'
+											/>
+										</div>
+										<div>
+											<Label>Rotation: {rotation}°</Label>
+											<Slider
+												value={[rotation]}
+												onValueChange={([v]) => setRotation(v)}
+												min={-180}
+												max={180}
+												step={5}
+												className='mt-2'
+											/>
+										</div>
+										<div>
+											<Label>Opacity: {opacity}%</Label>
+											<Slider
+												value={[opacity]}
+												onValueChange={([v]) => setOpacity(v)}
+												min={50}
+												max={100}
+												step={5}
+												className='mt-2'
+											/>
+										</div>
+									</div>
+								</AccordionContent>
+							</AccordionItem>
+						</Accordion>
+					</div>
+
+					{/* Desktop controls */}
+					<div className='hidden lg:block space-y-6'>
+						{/* Body Part Selection */}
+						<Card className='p-6'>
+							<h2 className='text-xl font-semibold mb-4'>Body Part</h2>
+							<div className='grid grid-cols-3 gap-2'>
+								{bodyParts.map((part) => (
+									<Button
+										key={part.value}
+										variant={selectedPart === part.value ? 'default' : 'outline'}
+										size='sm'
+										onClick={() => setSelectedPart(part.value)}
+									>
+										{part.label}
+									</Button>
+								))}
+							</div>
+						</Card>
+
+						{/* Style Selection */}
+						<Card className='p-6'>
+							<h2 className='text-xl font-semibold mb-4'>Tattoo Style</h2>
+							<RadioGroup value={selectedVariant} onValueChange={(v) => setSelectedVariant(v as TattooVariant)}>
+								{variants.map((variant) => (
+									<div key={variant.value} className='flex items-center space-x-2'>
+										<RadioGroupItem value={variant.value} id={variant.value} />
+										<Label htmlFor={variant.value}>{variant.label}</Label>
+									</div>
+								))}
+							</RadioGroup>
+						</Card>
+
+						{/* Adjustments */}
+						<Card className='p-6'>
+							<h2 className='text-xl font-semibold mb-4'>Adjustments</h2>
+							<div className='space-y-4'>
+								<div>
+									<Label>Scale: {scale}%</Label>
+									<Slider
+										value={[scale]}
+										onValueChange={([v]) => setScale(v)}
+										min={50}
+										max={150}
+										step={5}
+										className='mt-2'
+									/>
 								</div>
-							))}
-						</RadioGroup>
-					</Card>
-
-					{/* Adjustments */}
-					<Card className='p-6'>
-						<h2 className='text-xl font-semibold mb-4'>Adjustments</h2>
-						<div className='space-y-4'>
-							<div>
-								<Label>Scale: {scale}%</Label>
-								<input
-									type='range'
-									min='50'
-									max='150'
-									value={scale}
-									onChange={(e) => setScale(parseInt(e.target.value))}
-									className='w-full mt-2'
-								/>
+								<div>
+									<Label>Rotation: {rotation}°</Label>
+									<Slider
+										value={[rotation]}
+										onValueChange={([v]) => setRotation(v)}
+										min={-180}
+										max={180}
+										step={5}
+										className='mt-2'
+									/>
+								</div>
+								<div>
+									<Label>Opacity: {opacity}%</Label>
+									<Slider
+										value={[opacity]}
+										onValueChange={([v]) => setOpacity(v)}
+										min={50}
+										max={100}
+										step={5}
+										className='mt-2'
+									/>
+								</div>
 							</div>
-							<div>
-								<Label>Rotation: {rotation}°</Label>
-								<input
-									type='range'
-									min='-180'
-									max='180'
-									value={rotation}
-									onChange={(e) => setRotation(parseInt(e.target.value))}
-									className='w-full mt-2'
-								/>
-							</div>
-							<div>
-								<Label>Opacity: {opacity}%</Label>
-								<input
-									type='range'
-									min='50'
-									max='100'
-									value={opacity}
-									onChange={(e) => setOpacity(parseInt(e.target.value))}
-									className='w-full mt-2'
-								/>
-							</div>
-						</div>
-					</Card>
+						</Card>
+					</div>
 
 					{/* Custom Prompt */}
 					<Card className='p-6'>
@@ -378,14 +698,14 @@ export default function StudioPage() {
 					{/* Generate Button */}
 					<Button
 						onClick={generatePreview}
-						disabled={isGenerating || !bodyImage || !designImage}
+						disabled={isGenerating || !bodyImageUrl || !designImageUrl || isUploading}
 						className='w-full'
 						size='lg'
 					>
 						{isGenerating ? (
 							<>
 								<Loader2 className='mr-2 h-4 w-4 animate-spin' />
-								Generating Preview...
+								Generating Preview... {generationProgress > 0 && `${generationProgress}%`}
 							</>
 						) : (
 							<>
@@ -394,24 +714,39 @@ export default function StudioPage() {
 							</>
 						)}
 					</Button>
+
+					{isGenerating && (
+						<Progress value={generationProgress} className='w-full' />
+					)}
 				</div>
 
 				{/* Preview Panel */}
 				<div className='space-y-6'>
 					<Card className='p-6 min-h-[600px] flex items-center justify-center'>
-						{previewResult ? (
+						{isGenerating && !previewResult ? (
+							<div className='w-full space-y-4'>
+								<Skeleton className='w-full h-96' />
+								<div className='text-center'>
+									<Loader2 className='w-8 h-8 mx-auto mb-2 animate-spin text-gray-400' />
+									<p className='text-gray-600'>Generating your tattoo preview...</p>
+									<p className='text-sm text-gray-500 mt-1'>This usually takes 30-60 seconds</p>
+								</div>
+							</div>
+						) : previewResult ? (
 							<div className='w-full'>
-								<img
-									src={previewResult}
-									alt='Tattoo Preview'
-									className='w-full h-auto rounded-lg'
-								/>
+								<ImageZoom>
+									<img
+										src={previewResult}
+										alt='Tattoo Preview'
+										className='w-full h-auto rounded-lg cursor-zoom-in'
+									/>
+								</ImageZoom>
 								<div className='flex gap-2 mt-4'>
-									<Button variant='outline' size='sm' className='flex-1'>
+									<Button variant='outline' size='sm' className='flex-1' onClick={handleDownload}>
 										<Download className='mr-2 h-4 w-4' />
 										Download
 									</Button>
-									<Button variant='outline' size='sm' className='flex-1'>
+									<Button variant='outline' size='sm' className='flex-1' onClick={handleShare}>
 										<Share2 className='mr-2 h-4 w-4' />
 										Share
 									</Button>
@@ -436,19 +771,42 @@ export default function StudioPage() {
 						)}
 					</Card>
 
-					{jobId && (
+					{jobId && previewResult && (
 						<Card className='p-4'>
 							<p className='text-sm text-gray-600'>
 								Share this preview:{' '}
-								<a
-									href={`/p/${jobId}`}
-									target='_blank'
-									rel='noopener noreferrer'
+								<button
+									onClick={handleShare}
 									className='text-blue-600 hover:underline'
 								>
 									{`${window.location.origin}/p/${jobId}`}
-								</a>
+								</button>
 							</p>
+						</Card>
+					)}
+
+					{/* Recent Previews */}
+					{recentPreviews.length > 0 && (
+						<Card className='p-6'>
+							<h3 className='text-lg font-semibold mb-4'>Recent Previews</h3>
+							<div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+								{recentPreviews.map((preview) => (
+									<button
+										key={preview.id}
+										onClick={() => reusePreview(preview)}
+										className='group relative aspect-square rounded-lg overflow-hidden border hover:ring-2 hover:ring-primary transition-all'
+									>
+										<img
+											src={preview.url}
+											alt='Recent preview'
+											className='w-full h-full object-cover'
+										/>
+										<div className='absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center'>
+											<Eye className='text-white' />
+										</div>
+									</button>
+								))}
+							</div>
 						</Card>
 					)}
 				</div>

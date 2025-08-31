@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db/drizzle'
-import { previewJobs, previewResults } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { previewJobs, previewResults, userCredits } from '@/lib/db/schema'
+import { eq, and, sql } from 'drizzle-orm'
 import { getPrediction } from '@/lib/replicate'
+import { getUser } from '@/lib/db/queries'
 
 export const runtime = 'nodejs'
 
@@ -96,13 +97,64 @@ export async function GET(
 						job.status = 'succeeded'
 					}
 				} else if (prediction.status === 'failed' || prediction.status === 'canceled') {
+					// Refund credit if job failed and hasn't been refunded yet
+					let creditsRefunded = false
+					// Check if job hasn't already been marked as failed (to avoid double refunds)
+					const isFirstFailure = job.status === 'running' || job.status === 'queued'
+					if (job.userId && isFirstFailure) {
+						try {
+							// Check if credit was consumed (not in dev mode)
+							const user = await getUser()
+							if (user && user.id === job.userId) {
+								const [creditRecord] = await db
+									.select()
+									.from(userCredits)
+									.where(eq(userCredits.userId, job.userId))
+									.limit(1)
+								
+								// Only refund if not in unlimited dev mode
+								if (creditRecord && creditRecord.credits < 999999) {
+									await db
+										.update(userCredits)
+										.set({ 
+											credits: sql`${userCredits.credits} + 1`,
+											updatedAt: new Date()
+										})
+										.where(eq(userCredits.userId, job.userId))
+									creditsRefunded = true
+									console.log(`Refunded 1 credit to user ${job.userId} for failed job ${job.id}`)
+								}
+							}
+						} catch (error) {
+							console.error('Error refunding credit:', error)
+						}
+					}
+					
 					// Update job status
 					await db
 						.update(previewJobs)
-						.set({ status: 'failed' })
+						.set({ 
+							status: 'failed'
+						})
 						.where(eq(previewJobs.id, job.id))
 					
 					job.status = 'failed'
+					const errorMessage = prediction.error || 'Generation failed'
+					
+					// Add refund flag to response
+					if (creditsRefunded) {
+						return NextResponse.json({
+							job: {
+								id: job.id,
+								status: job.status,
+								error: errorMessage,
+								createdAt: job.createdAt,
+								variantParams: job.variantParams,
+							},
+							results: [],
+							creditsRefunded: true,
+						})
+					}
 				} else if (prediction.status === 'processing' || prediction.status === 'starting') {
 					// Keep as running
 					job.status = 'running'
