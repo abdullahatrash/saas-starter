@@ -2,31 +2,31 @@
  * Stripe Price IDs Configuration
  * Last updated: 2025-08-31
  * 
- * TEST MODE Price IDs - Created via Stripe CLI
- * Use these IDs when in test mode (API keys start with sk_test_ and pk_test_)
+ * LIVE MODE Price IDs - Created via Stripe Dashboard
+ * Use these IDs when in live mode (API keys start with sk_live_ and pk_live_)
  */
 
 export const STRIPE_PRICE_IDS = {
   // Credit Packs (One-time payments)
   creditPacks: {
-    starterPack: 'price_1S26Ua3FRtYXutpDgJHs2kXU',      // $4.99 - 10 credits
-    professional: 'price_1S26Uc3FRtYXutpDJubGrwiC',     // $9.99 - 25 credits
-    studioPack: 'price_1S26Uf3FRtYXutpDahYKv1q0',       // $19.99 - 60 credits
-    enterprise: 'price_1S26Uh3FRtYXutpD7Y6Rxd6J',       // $39.99 - 150 credits
-    bulkDeal: 'price_1S26Uj3FRtYXutpDB9igEcYL',         // $99.99 - 500 credits
+    starterPack: 'price_1S25HRKKwdMMZS6nnHtl8Jw7',      // $4.99 - 10 credits
+    professional: 'price_1S25IYKKwdMMZS6nOX8SFwRM',     // $9.99 - 25 credits
+    studioPack: 'price_1S25J6KKwdMMZS6nxSAiPiM0',       // $19.99 - 60 credits
+    enterprise: 'price_1S25JmKKwdMMZS6n30tUtnEI',       // $39.99 - 150 credits
+    bulkDeal: 'price_1S25L9KKwdMMZS6nQZJNvsTG',         // $99.99 - 500 credits
   },
 
   // Subscription Plans - Monthly
   subscriptions: {
     monthly: {
-      starter: 'price_1S26VH3FRtYXutpD9DXgOBH3',        // $19/month - 50 credits
-      pro: 'price_1S26VJ3FRtYXutpDolUnVNhx',            // $49/month - 200 credits
-      premium: 'price_1S26VM3FRtYXutpD6AH80AFs',        // $99/month - Unlimited
+      starter: 'price_1S25ORKKwdMMZS6ntoEQGsDp',        // $19/month - 50 credits
+      pro: 'price_1S25QaKKwdMMZS6nKMF8Z94W',            // $49/month - 200 credits
+      premium: 'price_1S25RSKKwdMMZS6nouvOOZzg',        // $99/month - Unlimited
     },
     yearly: {
-      starter: 'price_1S26VI3FRtYXutpDofFJ5Ot6',        // $120/year ($10/month) - 50 credits
-      pro: 'price_1S26VL3FRtYXutpDL9cTBysN',            // $348/year ($29/month) - 200 credits
-      premium: 'price_1S26VN3FRtYXutpDUwzKT4Zx',        // $588/year ($49/month) - Unlimited
+      starter: 'price_1S29yfKKwdMMZS6nMMSIatIQ',        // $120/year ($10/month) - 50 credits
+      pro: 'price_1S29zSKKwdMMZS6n53fhoC4Q',            // $348/year ($29/month) - 200 credits
+      premium: 'price_1S2A07KKwdMMZS6niHjjK0ev',        // $588/year ($49/month) - Unlimited
     }
   }
 };
