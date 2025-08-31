@@ -7,6 +7,7 @@ import Features from "@/components/features-4";
 import WallOfLoveSection from "@/components/testimonials";
 import FAQsTwo from "@/components/faqs-2";
 import Pricing from "@/components/pricing";
+import PricingWithCheckout from "@/components/pricing-with-checkout";
 import FooterSection from "@/components/footer";
 import CTASection from "@/components/cta-section";
 import {
@@ -14,6 +15,8 @@ import {
   ComparisonItem,
   ComparisonHandle,
 } from "@/components/ui/shadcn-io/comparison";
+import { getUser } from "@/lib/db/queries";
+import { checkoutAction } from "@/lib/payments/actions";
 
 // Structured data for SEO
 const structuredData = {
@@ -37,7 +40,9 @@ const structuredData = {
     "Try tattoos on your skin instantly with AI tattoo preview technology",
 };
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const user = await getUser();
+  
   return (
     <>
       <script
@@ -195,7 +200,11 @@ export default function LandingPage() {
 
         {/* Pricing Section */}
         <section id="pricing" className="bg-white">
-          <Pricing />
+          {user ? (
+            <PricingWithCheckout checkoutAction={checkoutAction} />
+          ) : (
+            <Pricing />
+          )}
         </section>
 
         {/* Testimonials */}
