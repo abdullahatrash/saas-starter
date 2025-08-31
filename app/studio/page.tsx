@@ -49,6 +49,10 @@ export default function StudioPage() {
 	const [useCustomPrompt, setUseCustomPrompt] = useState(false)
 	const [generatedPrompt, setGeneratedPrompt] = useState('')
 	const [showGeneratedPrompt, setShowGeneratedPrompt] = useState(false)
+	// Dynamic prompt builder states
+	const [promptRealism, setPromptRealism] = useState('realistic')
+	const [promptBlending, setPromptBlending] = useState('natural')
+	const [promptDetails, setPromptDetails] = useState('')
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [isUploading, setIsUploading] = useState(false)
 	const [uploadProgress, setUploadProgress] = useState(0)
@@ -103,9 +107,28 @@ export default function StudioPage() {
 				rotationDeg: rotation,
 				opacity: opacity / 100,
 			}
-			setGeneratedPrompt(buildTattooPrompt(params))
+			let basePrompt = buildTattooPrompt(params)
+			
+			// Add dynamic enhancements
+			if (promptRealism === 'photorealistic') {
+				basePrompt += ', photorealistic quality, high detail'
+			} else if (promptRealism === 'artistic') {
+				basePrompt += ', artistic style, stylized'
+			}
+			
+			if (promptBlending === 'seamless') {
+				basePrompt += ', seamlessly blended with skin'
+			} else if (promptBlending === 'bold') {
+				basePrompt += ', bold and prominent'
+			}
+			
+			if (promptDetails) {
+				basePrompt += `, ${promptDetails}`
+			}
+			
+			setGeneratedPrompt(basePrompt)
 		}
-	}, [selectedPart, selectedVariant, scale, rotation, opacity, useCustomPrompt])
+	}, [selectedPart, selectedVariant, scale, rotation, opacity, useCustomPrompt, promptRealism, promptBlending, promptDetails])
 
 	// Handle file uploads when files change
 	useEffect(() => {
@@ -366,7 +389,7 @@ export default function StudioPage() {
 	}
 
 	return (
-		<div className='container mx-auto py-8 px-4'>
+		<div className='container mx-auto py-8 px-4 pb-24'>
 			<Toaster position="top-center" richColors />
 			
 			<div className='mb-8'>
@@ -644,11 +667,12 @@ export default function StudioPage() {
 						</Card>
 					</div>
 
-					{/* Custom Prompt */}
+					{/* Enhanced Prompt Builder */}
 					<Card className='p-6'>
-						<h2 className='text-xl font-semibold mb-4'>Prompt</h2>
+						<h2 className='text-xl font-semibold mb-4'>Fine-tune Output</h2>
 						<div className='space-y-4'>
-							<div className='flex items-center justify-between'>
+							<div className='flex items-center justify-between mb-2'>
+								<Label className='text-sm font-medium'>Prompt Mode</Label>
 								<div className='flex items-center space-x-2'>
 									<input
 										type='checkbox'
@@ -660,64 +684,112 @@ export default function StudioPage() {
 										}}
 										className='rounded border-gray-300'
 									/>
-									<Label htmlFor='use-custom-prompt'>Use custom prompt</Label>
+									<Label htmlFor='use-custom-prompt' className='text-sm'>Advanced</Label>
 								</div>
-								{!useCustomPrompt && (
-									<Button
-										variant='outline'
-										size='sm'
-										onClick={() => setShowGeneratedPrompt(!showGeneratedPrompt)}
-									>
-										<Eye className='w-4 h-4 mr-1' />
-										{showGeneratedPrompt ? 'Hide' : 'Show'} Generated
-									</Button>
-								)}
 							</div>
 							
 							{useCustomPrompt ? (
-								<textarea
-									placeholder='Enter your custom prompt (e.g., "Apply the tattoo design from the second image onto the arm in the first image. Make it look realistic and natural.")'
-									value={customPrompt}
-									onChange={(e) => setCustomPrompt(e.target.value)}
-									className='w-full p-3 border rounded-lg min-h-[120px] resize-y'
-								/>
-							) : showGeneratedPrompt ? (
-								<div className='p-3 bg-gray-50 border rounded-lg'>
-									<p className='text-sm font-mono text-gray-700'>{generatedPrompt}</p>
+								<div className='space-y-2'>
+									<Label className='text-xs text-gray-500'>Full Control Mode</Label>
+									<textarea
+										placeholder='Enter your custom prompt (e.g., "Apply the tattoo design from the second image onto the arm in the first image. Make it look realistic and natural.")'
+										value={customPrompt}
+										onChange={(e) => setCustomPrompt(e.target.value)}
+										className='w-full p-3 border rounded-lg min-h-[120px] resize-y text-sm'
+									/>
 								</div>
 							) : (
-								<div className='p-3 bg-gray-50 border border-dashed rounded-lg'>
-									<p className='text-sm text-gray-500'>
-										Auto-generated based on your selections above. Click "Show Generated" to preview.
-									</p>
+								<div className='space-y-4'>
+									{/* Realism Level */}
+									<div>
+										<Label className='text-sm mb-2 block'>Realism</Label>
+										<div className='grid grid-cols-3 gap-2'>
+											<Button
+												variant={promptRealism === 'realistic' ? 'default' : 'outline'}
+												size='sm'
+												onClick={() => setPromptRealism('realistic')}
+											>
+												Realistic
+											</Button>
+											<Button
+												variant={promptRealism === 'photorealistic' ? 'default' : 'outline'}
+												size='sm'
+												onClick={() => setPromptRealism('photorealistic')}
+											>
+												Photo-Real
+											</Button>
+											<Button
+												variant={promptRealism === 'artistic' ? 'default' : 'outline'}
+												size='sm'
+												onClick={() => setPromptRealism('artistic')}
+											>
+												Artistic
+											</Button>
+										</div>
+									</div>
+									
+									{/* Blending Style */}
+									<div>
+										<Label className='text-sm mb-2 block'>Skin Blending</Label>
+										<div className='grid grid-cols-3 gap-2'>
+											<Button
+												variant={promptBlending === 'natural' ? 'default' : 'outline'}
+												size='sm'
+												onClick={() => setPromptBlending('natural')}
+											>
+												Natural
+											</Button>
+											<Button
+												variant={promptBlending === 'seamless' ? 'default' : 'outline'}
+												size='sm'
+												onClick={() => setPromptBlending('seamless')}
+											>
+												Seamless
+											</Button>
+											<Button
+												variant={promptBlending === 'bold' ? 'default' : 'outline'}
+												size='sm'
+												onClick={() => setPromptBlending('bold')}
+											>
+												Bold
+											</Button>
+										</div>
+									</div>
+									
+									{/* Additional Details */}
+									<div>
+										<Label className='text-sm mb-2 block'>Additional Details (Optional)</Label>
+										<input
+											type='text'
+											placeholder='e.g., "fresh ink look, vibrant colors, aged appearance"'
+											value={promptDetails}
+											onChange={(e) => setPromptDetails(e.target.value)}
+											className='w-full p-2 border rounded-lg text-sm'
+										/>
+									</div>
+									
+									{/* Show Generated Prompt */}
+									<div>
+										<Button
+											variant='ghost'
+											size='sm'
+											onClick={() => setShowGeneratedPrompt(!showGeneratedPrompt)}
+											className='text-xs'
+										>
+											<Eye className='w-3 h-3 mr-1' />
+											{showGeneratedPrompt ? 'Hide' : 'View'} Final Prompt
+										</Button>
+										{showGeneratedPrompt && (
+											<div className='mt-2 p-2 bg-gray-50 border rounded text-xs font-mono'>
+												{generatedPrompt}
+											</div>
+										)}
+									</div>
 								</div>
 							)}
 						</div>
 					</Card>
 
-					{/* Generate Button */}
-					<Button
-						onClick={generatePreview}
-						disabled={isGenerating || !bodyImageUrl || !designImageUrl || isUploading}
-						className='w-full'
-						size='lg'
-					>
-						{isGenerating ? (
-							<>
-								<Loader2 className='mr-2 h-4 w-4 animate-spin' />
-								Generating Preview... {generationProgress > 0 && `${generationProgress}%`}
-							</>
-						) : (
-							<>
-								<ZoomIn className='mr-2 h-4 w-4' />
-								Generate Preview (1 Credit)
-							</>
-						)}
-					</Button>
-
-					{isGenerating && (
-						<Progress value={generationProgress} className='w-full' />
-					)}
 				</div>
 
 				{/* Preview Panel */}
@@ -809,6 +881,64 @@ export default function StudioPage() {
 							</div>
 						</Card>
 					)}
+				</div>
+			</div>
+
+			{/* Floating Action Bar */}
+			<div className='fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50'>
+				<div className='container mx-auto px-4 py-3'>
+					<div className='flex items-center justify-between gap-4'>
+						{/* Status indicators */}
+						<div className='flex items-center gap-4 text-sm'>
+							{bodyImageUrl && designImageUrl ? (
+								<div className='flex items-center gap-2'>
+									<div className='w-2 h-2 bg-green-500 rounded-full'></div>
+									<span className='text-gray-600'>Ready to generate</span>
+								</div>
+							) : (
+								<div className='flex items-center gap-2'>
+									<div className='w-2 h-2 bg-yellow-500 rounded-full animate-pulse'></div>
+									<span className='text-gray-600'>
+										{!bodyImageUrl && !designImageUrl ? 'Upload both images' : 
+										 !bodyImageUrl ? 'Upload body photo' : 'Upload design'}
+									</span>
+								</div>
+							)}
+							{credits !== null && credits !== 999999 && (
+								<div className='hidden sm:flex items-center gap-1'>
+									<span className='text-gray-500'>Credits:</span>
+									<span className='font-medium'>{credits}</span>
+								</div>
+							)}
+						</div>
+
+						{/* Generate Button */}
+						<div className='flex items-center gap-3'>
+							{isGenerating && (
+								<div className='hidden sm:block w-32'>
+									<Progress value={generationProgress} className='h-2' />
+								</div>
+							)}
+							<Button
+								onClick={generatePreview}
+								disabled={isGenerating || !bodyImageUrl || !designImageUrl || isUploading}
+								size='lg'
+								className='min-w-[180px]'
+							>
+								{isGenerating ? (
+									<>
+										<Loader2 className='mr-2 h-4 w-4 animate-spin' />
+										{generationProgress > 0 ? `${generationProgress}%` : 'Generating...'}
+									</>
+								) : (
+									<>
+										<ZoomIn className='mr-2 h-4 w-4' />
+										Generate Preview
+									</>
+								)}
+							</Button>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>
