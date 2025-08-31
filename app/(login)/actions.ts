@@ -25,6 +25,7 @@ import {
   validatedAction,
   validatedActionWithUser
 } from '@/lib/auth/middleware';
+import { getUserCredits, initializeUserCredits } from '@/lib/entitlements';
 
 async function logActivity(
   teamId: number | null | undefined,
@@ -97,7 +98,16 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
     return createCheckoutSession({ team: foundTeam, priceId });
   }
 
-  redirect('/dashboard');
+  // Check user credits
+  const credits = await getUserCredits(foundUser.id);
+  
+  // If user has no credits, redirect to pricing
+  if (credits === 0) {
+    redirect('/pricing');
+  }
+
+  // Otherwise, redirect to studio
+  redirect('/studio');
 });
 
 const signUpSchema = z.object({
@@ -209,7 +219,8 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
   await Promise.all([
     db.insert(teamMembers).values(newTeamMember),
     logActivity(teamId, createdUser.id, ActivityType.SIGN_UP),
-    setSession(createdUser)
+    setSession(createdUser),
+    initializeUserCredits(createdUser.id) // Initialize user credits with default amount
   ]);
 
   const redirectTo = formData.get('redirect') as string | null;
@@ -218,7 +229,8 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     return createCheckoutSession({ team: createdTeam, priceId });
   }
 
-  redirect('/dashboard');
+  // New users get initial credits, so redirect to studio
+  redirect('/studio');
 });
 
 export async function signOut() {

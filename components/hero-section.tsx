@@ -1,9 +1,21 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
-// import DemoVideoPlayer from '@/components/demo-video-player'
+import { useState, useEffect, useRef, Suspense } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { signOut } from "@/app/(login)/actions";
+import { useRouter } from "next/navigation";
+import { User } from "@/lib/db/schema";
+import useSWR, { mutate } from "swr";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const menuItems = [
   { name: "Features", href: "#features" },
@@ -11,6 +23,84 @@ const menuItems = [
   { name: "Gallery", href: "#gallery" },
   { name: "Studio", href: "/studio" },
 ];
+
+function UserMenu() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { data: user } = useSWR<User>('/api/user', fetcher);
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await signOut();
+    mutate('/api/user');
+    router.push('/');
+  }
+
+  if (!user) {
+    return (
+      <>
+        <Button
+          asChild
+          className="border-yellow-400 text-black hover:bg-yellow-400 hover:text-black font-bold uppercase tracking-wider"
+          variant="outline"
+          size="sm"
+        >
+          <Link href="/sign-in">
+            <span>Login</span>
+          </Link>
+        </Button>
+
+        <Button
+          asChild
+          className="bg-yellow-400 text-black hover:bg-yellow-500 font-bold uppercase tracking-wider"
+          size="sm"
+        >
+          <Link href="/sign-up">
+            <span>Sign Up</span>
+          </Link>
+        </Button>
+      </>
+    );
+  }
+
+  return (
+    <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-yellow-400/10 hover:bg-yellow-400/20">
+          <Avatar className="h-9 w-9">
+            <AvatarImage alt={user.name || ''} />
+            <AvatarFallback className="bg-yellow-400 text-black">
+              {user.email?.charAt(0).toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem className="font-medium">
+          <UserIcon className="mr-2 h-4 w-4" />
+          {user.email}
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Link href="/dashboard" className="flex w-full items-center">
+            Dashboard
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Link href="/studio" className="flex w-full items-center">
+            Tattoo Studio
+          </Link>
+        </DropdownMenuItem>
+        <form action={handleSignOut} className="w-full">
+          <button type="submit" className="w-full">
+            <DropdownMenuItem className="cursor-pointer text-red-600">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sign out</span>
+            </DropdownMenuItem>
+          </button>
+        </form>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export default function HeroSection() {
   const [menuState, setMenuState] = useState(false);
@@ -116,26 +206,14 @@ export default function HeroSection() {
                 </div>
 
                 <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit lg:border-l lg:pl-6">
-                  <Button
-                    asChild
-                    className="border-yellow-400 text-black hover:bg-yellow-400 hover:text-black font-bold uppercase tracking-wider"
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Link href="/sign-in">
-                      <span>Login</span>
-                    </Link>
-                  </Button>
-
-                  <Button
-                    asChild
-                    className="bg-yellow-400 text-black hover:bg-yellow-500 font-bold uppercase tracking-wider"
-                    size="sm"
-                  >
-                    <Link href="/sign-up">
-                      <span>Sign Up</span>
-                    </Link>
-                  </Button>
+                  <Suspense fallback={
+                    <div className="flex gap-3">
+                      <div className="h-9 w-20 bg-yellow-400/20 rounded animate-pulse" />
+                      <div className="h-9 w-20 bg-yellow-400/20 rounded animate-pulse" />
+                    </div>
+                  }>
+                    <UserMenu />
+                  </Suspense>
                 </div>
               </div>
             </div>

@@ -11,6 +11,7 @@ import FAQsTwo from "@/components/faqs-2";
 import Pricing from "@/components/pricing";
 import FooterSection from "@/components/footer";
 import { CreditCard, ChevronRight } from "lucide-react";
+import { Comparison, ComparisonItem, ComparisonHandle } from "@/components/ui/shadcn-io/comparison";
 
 // Structured data for SEO
 const structuredData = {
@@ -102,18 +103,65 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Before/After Comparison Section */}
+      <section className="bg-yellow-50 py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto">
+            {/* Section Title */}
+            <div className="text-center mb-12">
+              <span className="text-yellow-600 font-bold text-sm uppercase tracking-wider">See The Difference</span>
+              <h2 className="text-4xl md:text-5xl font-bold mt-2">
+                Before & <span className="text-yellow-500">After</span>
+              </h2>
+              <p className="text-xl text-gray-600 leading-relaxed mt-4 max-w-3xl mx-auto">
+                Drag the slider to see how our AI transforms your skin with realistic tattoo previews
+              </p>
+            </div>
+            
+            {/* Comparison Component - Wider aspect ratio */}
+            <div className="w-full">
+              <Comparison mode="drag" className="rounded-xl overflow-hidden shadow-2xl">
+                <div className="relative aspect-video md:aspect-[21/9]">
+                  <ComparisonItem position="left">
+                    <img
+                      src="https://p9xcezb73lfrkkkg.public.blob.vercel-storage.com/tattoo-previews/1-1756613278694-pexels-yankrukov-5479698.jpg"
+                      alt="Before - Original skin"
+                      className="absolute inset-0 h-full w-full object-cover object-bottom"
+                    />
+                    <div className="absolute bottom-6 left-6 bg-black/70 text-white px-4 py-2 rounded-full text-sm md:text-base font-bold">
+                      BEFORE
+                    </div>
+                  </ComparisonItem>
+                  <ComparisonItem position="right">
+                    <img
+                      src="https://p9xcezb73lfrkkkg.public.blob.vercel-storage.com/images/tattooo.jpg"
+                      alt="After - With tattoo preview"
+                      className="absolute inset-0 h-full w-full object-cover object-bottom"
+                    />
+                    <div className="absolute bottom-6 right-6 bg-yellow-400 text-black px-4 py-2 rounded-full text-sm md:text-base font-bold">
+                      AFTER
+                    </div>
+                  </ComparisonItem>
+                  <ComparisonHandle />
+                </div>
+              </Comparison>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Tattoo Gallery */}
       {/* <section id="gallery">
         <TattooGallery />
       </section> */}
 
       {/* Features Grid */}
-      <section className="bg-yellow-50">
+      <section className="bg-white">
         <Features />
       </section>
 
       {/* Gallery Section */}
-      <section id="gallery" className="py-20 bg-white">
+      <section id="gallery" className="py-20 bg-yellow-50">
         <div className="container mx-auto max-w-6xl px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Gallery</h2>
           <p className="text-muted-foreground">Coming soon - See amazing tattoo previews created by our users</p>
@@ -121,17 +169,17 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="bg-yellow-50">
+      <section id="pricing" className="bg-white">
         <Pricing />
       </section>
 
       {/* Testimonials */}
-      <section className="bg-white">
+      <section className="bg-yellow-50">
         <WallOfLoveSection />
       </section>
 
       {/* FAQ Section */}
-      <section className="bg-yellow-50">
+      <section className="bg-white">
         <FAQsTwo />
       </section>
 

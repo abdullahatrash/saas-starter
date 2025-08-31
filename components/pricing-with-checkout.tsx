@@ -14,16 +14,24 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, Sparkles, Clock } from "lucide-react";
 
-export default function Pricing() {
+interface PricingWithCheckoutProps {
+  checkoutAction?: (formData: FormData) => Promise<void>;
+}
+
+export default function PricingWithCheckout({ checkoutAction }: PricingWithCheckoutProps) {
   const [billingCycle, setBillingCycle] = useState<"yearly" | "monthly">(
     "yearly"
   );
 
+  // These would normally come from Stripe products
+  // You'll need to create these products in your Stripe dashboard
   const plans = [
     {
       name: "Starter",
       monthlyPrice: 19,
-      yearlyPrice: 10,
+      yearlyPrice: 15,
+      monthlyPriceId: "price_starter_monthly", // Replace with actual Stripe price ID
+      yearlyPriceId: "price_starter_yearly",   // Replace with actual Stripe price ID
       features: [
         "50 AI tattoo previews",
         "Basic tattoo styles",
@@ -37,7 +45,9 @@ export default function Pricing() {
     {
       name: "Pro",
       monthlyPrice: 49,
-      yearlyPrice: 29,
+      yearlyPrice: 39,
+      monthlyPriceId: "price_pro_monthly", // Replace with actual Stripe price ID
+      yearlyPriceId: "price_pro_yearly",   // Replace with actual Stripe price ID
       features: [
         "200 AI tattoo previews",
         "All tattoo styles",
@@ -55,7 +65,9 @@ export default function Pricing() {
     {
       name: "Premium",
       monthlyPrice: 99,
-      yearlyPrice: 49,
+      yearlyPrice: 79,
+      monthlyPriceId: "price_premium_monthly", // Replace with actual Stripe price ID
+      yearlyPriceId: "price_premium_yearly",   // Replace with actual Stripe price ID
       features: [
         "Unlimited previews",
         "Priority in queue",
@@ -157,21 +169,50 @@ export default function Pricing() {
                 </CardContent>
 
                 <CardFooter>
-                  <Button
-                    asChild
-                    variant={plan.popular ? "default" : "outline"}
-                    className={`w-full ${
-                      plan.popular
-                        ? "bg-yellow-400 text-black hover:bg-yellow-500"
-                        : ""
-                    }`}
-                  >
-                    <Link
-                      href={plan.name === "Premium" ? "/contact" : "/sign-up"}
+                  {plan.name === "Premium" ? (
+                    <Button
+                      asChild
+                      variant={plan.variant}
+                      className="w-full"
                     >
-                      {plan.cta}
-                    </Link>
-                  </Button>
+                      <Link href="/contact">
+                        {plan.cta}
+                      </Link>
+                    </Button>
+                  ) : checkoutAction ? (
+                    <form action={checkoutAction} className="w-full">
+                      <input
+                        type="hidden"
+                        name="priceId"
+                        value={billingCycle === "yearly" ? plan.yearlyPriceId : plan.monthlyPriceId}
+                      />
+                      <Button
+                        type="submit"
+                        variant={plan.popular ? "default" : "outline"}
+                        className={`w-full ${
+                          plan.popular
+                            ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                            : ""
+                        }`}
+                      >
+                        {plan.cta}
+                      </Button>
+                    </form>
+                  ) : (
+                    <Button
+                      asChild
+                      variant={plan.popular ? "default" : "outline"}
+                      className={`w-full ${
+                        plan.popular
+                          ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                          : ""
+                      }`}
+                    >
+                      <Link href="/sign-up">
+                        {plan.cta}
+                      </Link>
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             ))}
@@ -187,7 +228,7 @@ export default function Pricing() {
             </span>
           </p>
           <p className="text-sm text-muted-foreground">
-            Limited time offer • Claim now • Cancel anytime
+            Limited time offer • No credit card required • Cancel anytime
           </p>
         </div>
 
