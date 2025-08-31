@@ -242,25 +242,25 @@ export default function HeroSection() {
             <div className="lg:flex lg:items-center lg:gap-12">
               <div className="relative z-10 mx-auto max-w-2xl text-center lg:ml-0 lg:w-2/3 lg:max-w-none lg:text-left">
                 <h1 className="text-5xl md:text-6xl xl:text-7xl font-black uppercase leading-none">
-                  <span className="text-white">Try Before</span>
+                  <span className="text-white">See Your Tattoo</span>
                   <br />
-                  <span className="text-yellow-400">You Ink</span>
+                  <span className="text-yellow-400">Before You Commit</span>
                 </h1>
                 <div className="mt-8 space-y-3 text-lg text-gray-200 max-w-2xl">
                   <p className="flex items-start">
                     <span className="text-yellow-400 mr-3 flex-shrink-0 text-xl">
-                      🔥
+                      ✨
                     </span>
                     <span className="leading-relaxed font-semibold">
-                      Upload photo → See tattoos on your skin
+                      Photorealistic AI preview in 30-60 seconds
                     </span>
                   </p>
                   <p className="flex items-start">
                     <span className="text-yellow-400 mr-3 flex-shrink-0 text-xl">
-                      💉
+                      🎯
                     </span>
                     <span className="leading-relaxed font-semibold">
-                      Upload sketch → Instant realistic preview
+                      Perfect for first tattoos or planning sleeves
                     </span>
                   </p>
                   <p className="flex items-start">
@@ -268,16 +268,15 @@ export default function HeroSection() {
                       🎨
                     </span>
                     <span className="leading-relaxed font-semibold">
-                      Try tattoos in any style — Black & Grey, Watercolor,
-                      Traditional
+                      All styles: Black & Gray, Color, Fine Line, Watercolor
                     </span>
                   </p>
                   <p className="flex items-start">
                     <span className="text-yellow-400 mr-3 flex-shrink-0 text-xl">
-                      ⚡
+                      💡
                     </span>
                     <span className="leading-relaxed font-semibold">
-                      Test anywhere: arm, back, chest, neck
+                      Artists: Save consultation time, increase bookings
                     </span>
                   </p>
                 </div>
@@ -295,19 +294,19 @@ export default function HeroSection() {
                         {user ? (
                           <>
                             <span className="block sm:hidden">
-                              Go to Studio →
+                              Try It Now →
                             </span>
                             <span className="hidden sm:block">
-                              Create Your AI Tattoo Preview →
+                              Visualize Your Dream Tattoo →
                             </span>
                           </>
                         ) : (
                           <>
                             <span className="block sm:hidden">
-                              Start Free Preview →
+                              Try 3 Free →
                             </span>
                             <span className="hidden sm:block">
-                              Start Your First AI Tattoo Free Preview →
+                              Try Your First Tattoo - 3 Free Previews →
                             </span>
                           </>
                         )}

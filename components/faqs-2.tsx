@@ -7,53 +7,53 @@ export default function FAQsTwo() {
     const faqItems = [
         {
             id: 'item-1',
-            question: 'How accurate are the tattoo previews?',
-            answer: 'Our AI technology generates photorealistic previews with 95% accuracy. The system accounts for body contours, skin tone, and lighting to create previews that closely match the final tattoo result. Artists report that clients are consistently amazed by how accurate the previews are.',
+            question: 'How realistic are the previews?',
+            answer: 'Our AI technology creates photorealistic previews that accurately show how the tattoo will look on your skin, including natural lighting, body contours, and skin tone blending. The previews are so realistic that both clients and artists consistently report being amazed by the accuracy.',
         },
         {
             id: 'item-2',
-            question: 'What file formats are supported?',
-            answer: 'We support JPG, PNG, and WebP formats for both body photos and design uploads. Maximum file size is 10MB per image. For best results, use high-resolution images with good lighting. The clearer your images, the better the preview quality.',
+            question: 'What image formats are supported?',
+            answer: 'We support JPG, PNG, and WebP images up to 10MB. Images are automatically compressed for optimal processing. Use clear, well-lit photos for best results - the clearer your images, the better the preview quality.',
         },
         {
             id: 'item-3',
-            question: 'How does the credit system work?',
-            answer: 'Each preview generation costs 1 credit. New users get 3 free credits to try the service. You can purchase credit packs starting at $4.99 for 10 credits, or subscribe to monthly plans for better value. Unused credits from packs never expire.',
+            question: 'How long does it take to generate a preview?',
+            answer: 'Most previews are ready in 30-60 seconds. Complex designs might take slightly longer. We use Google\'s advanced Nano-Banana AI model via Replicate for fast, high-quality results.',
         },
         {
             id: 'item-4',
-            question: 'Can I cancel my subscription anytime?',
-            answer: "Yes, you can cancel your subscription at any time from your account settings. You'll continue to have access until the end of your billing period. No questions asked, no cancellation fees. Credit packs are one-time purchases and don't require cancellation.",
+            question: 'What makes a good body photo?',
+            answer: 'Use a clear, well-lit photo of the body area where you want the tattoo. Avoid blurry or dark images for best results. Natural lighting works great, and make sure the area is clearly visible.',
         },
         {
             id: 'item-5',
-            question: 'Is my client data secure?',
-            answer: 'Absolutely. All uploads are encrypted using bank-level security. We never share or sell your data. Images are automatically deleted after 30 days unless saved to your gallery. We\'re GDPR compliant and follow industry best practices for data protection.',
+            question: 'Can I try different placements?',
+            answer: 'Yes! You can generate unlimited variations with different body parts, sizes, rotations, and styles using your credits. Try your design on your arm, back, chest, shoulder, leg, ankle, wrist, hand, or neck.',
         },
         {
             id: 'item-6',
-            question: 'Do you offer team accounts for studios?',
-            answer: 'Yes! Our Studio Unlimited plan ($99.99/month) includes team accounts. You can add multiple artists to your account and manage permissions. For larger studios with 10+ artists, contact us for custom enterprise solutions with volume pricing.',
+            question: 'What\'s the difference between style options?',
+            answer: 'Black & Gray gives you classic monochrome tattoo style. Full Color provides vibrant, colorful rendering. Fine Line creates delicate, thin-line tattoo style. Watercolor produces an artistic, paint-like effect.',
         },
         {
             id: 'item-7',
-            question: 'What\'s your refund policy?',
-            answer: 'We offer a 7-day money-back guarantee on all credit pack purchases if you\'re not satisfied. For subscriptions, we provide a 14-day free trial so you can test the service risk-free. Simply contact support within the guarantee period for a full refund.',
+            question: 'What are credits?',
+            answer: 'Each preview generation uses 1 credit. New users get 3 free credits to try the service. If the AI fails to generate your preview, your credit is automatically refunded.',
         },
         {
             id: 'item-8',
-            question: 'Can I use this for all tattoo styles?',
-            answer: 'Yes! Our AI handles all major tattoo styles including black & gray, color, fine line, watercolor, traditional, neo-traditional, realism, and more. You can adjust parameters like opacity, size, and rotation to perfectly match your artistic vision.',
+            question: 'Do credits expire?',
+            answer: 'No, purchased credits never expire. Use them whenever you need. You can buy more credits through our pricing page, with bulk purchases including discounts.',
         },
         {
             id: 'item-9',
-            question: 'How long does preview generation take?',
-            answer: 'Most previews are generated in 3-5 seconds. Complex designs or high-demand periods might take up to 10 seconds. We use advanced AI infrastructure to ensure fast, consistent performance even during peak hours.',
+            question: 'Are my photos safe?',
+            answer: 'Yes! All images are securely stored on Vercel\'s encrypted servers and are only used for generating your previews. Images are stored for 30 days for your convenience, then automatically deleted.',
         },
         {
             id: 'item-10',
-            question: 'Can clients use this without an account?',
-            answer: 'Artists can share preview links with clients who can view and comment without creating an account. However, to generate their own previews, users need to sign up. We offer a white-label option for studios who want a fully branded experience.',
+            question: 'Can others see my previews?',
+            answer: 'Only if you share the link. By default, all previews are private to your account. You can delete your account and all associated data at any time from your dashboard.',
         },
     ]
 

@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import HeroSection from "@/components/hero-section";
 import Features1 from "@/components/features-1";
@@ -10,28 +8,33 @@ import WallOfLoveSection from "@/components/testimonials";
 import FAQsTwo from "@/components/faqs-2";
 import Pricing from "@/components/pricing";
 import FooterSection from "@/components/footer";
-import { CreditCard, ChevronRight } from "lucide-react";
-import { Comparison, ComparisonItem, ComparisonHandle } from "@/components/ui/shadcn-io/comparison";
+import CTASection from "@/components/cta-section";
+import {
+  Comparison,
+  ComparisonItem,
+  ComparisonHandle,
+} from "@/components/ui/shadcn-io/comparison";
 
 // Structured data for SEO
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "TattoosTry",
-  "applicationCategory": "DesignApplication",
-  "url": "https://tattoostry.com",
-  "offers": {
+  name: "TattoosTry",
+  applicationCategory: "DesignApplication",
+  url: "https://tattoostry.com",
+  offers: {
     "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD",
-    "availability": "https://schema.org/InStock"
+    price: "0",
+    priceCurrency: "USD",
+    availability: "https://schema.org/InStock",
   },
-  "aggregateRating": {
+  aggregateRating: {
     "@type": "AggregateRating",
-    "ratingValue": "4.9",
-    "ratingCount": "500"
+    ratingValue: "4.9",
+    ratingCount: "500",
   },
-  "description": "Try tattoos on your skin instantly with AI tattoo preview technology"
+  description:
+    "Try tattoos on your skin instantly with AI tattoo preview technology",
 };
 
 export default function LandingPage() {
@@ -46,177 +49,171 @@ export default function LandingPage() {
         <HeroSection />
 
         {/* Trust Indicators */}
-        <section className="border-y bg-white py-8" aria-label="Trust indicators">
-        <div className="container mx-auto max-w-6xl px-4">
-          <div className="flex flex-wrap items-center justify-center gap-8 text-center">
-            <div>
-              <p className="text-2xl font-bold">10,000+</p>
-              <p className="text-sm text-muted-foreground">
-                Previews Generated
-              </p>
-            </div>
-            <Separator orientation="vertical" className="h-8 hidden sm:block" />
-            <div>
-              <p className="text-2xl font-bold">500+</p>
-              <p className="text-sm text-muted-foreground">Tattoo Artists</p>
-            </div>
-            <Separator orientation="vertical" className="h-8 hidden sm:block" />
-            <div>
-              <p className="text-2xl font-bold">4.9/5</p>
-              <p className="text-sm text-muted-foreground">Customer Rating</p>
-            </div>
-            <Separator orientation="vertical" className="h-8 hidden sm:block" />
-            <div>
-              <p className="text-2xl font-bold">5 sec</p>
-              <p className="text-sm text-muted-foreground">
-                Average Generation
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section id="features" className="bg-yellow-50">
-        <Features1 />
-      </section>
-
-      {/* Video Demo Section */}
-      <section className="bg-white py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            {/* Centered Title */}
-            <div className="text-center mb-12">
-              <span className="text-yellow-500 font-bold text-sm uppercase tracking-wider">Watch Demo</span>
-              <h2 className="text-4xl md:text-5xl font-bold mt-2">
-                See It In <span className="text-yellow-400">Action</span>
-              </h2>
-              <p className="text-xl text-gray-600 leading-relaxed mt-4 max-w-3xl mx-auto">
-                Watch how easy it is to preview tattoos on your skin before committing. 
-                Transform any design into a realistic preview in seconds.
-              </p>
-            </div>
-            
-            {/* Large Video Player */}
-            <DemoVideoPlayer />
-          </div>
-        </div>
-      </section>
-
-      {/* Before/After Comparison Section */}
-      <section className="bg-yellow-50 py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            {/* Section Title */}
-            <div className="text-center mb-12">
-              <span className="text-yellow-600 font-bold text-sm uppercase tracking-wider">See The Difference</span>
-              <h2 className="text-4xl md:text-5xl font-bold mt-2">
-                Before & <span className="text-yellow-500">After</span>
-              </h2>
-              <p className="text-xl text-gray-600 leading-relaxed mt-4 max-w-3xl mx-auto">
-                Drag the slider to see how our AI transforms your skin with realistic tattoo previews
-              </p>
-            </div>
-            
-            {/* Comparison Component - Wider aspect ratio */}
-            <div className="w-full">
-              <Comparison mode="drag" className="rounded-xl overflow-hidden shadow-2xl">
-                <div className="relative aspect-video md:aspect-[21/9]">
-                  <ComparisonItem position="left">
-                    <img
-                      src="https://p9xcezb73lfrkkkg.public.blob.vercel-storage.com/tattoo-previews/1-1756613278694-pexels-yankrukov-5479698.jpg"
-                      alt="Before - Original skin"
-                      className="absolute inset-0 h-full w-full object-cover object-bottom"
-                    />
-                    <div className="absolute bottom-6 left-6 bg-black/70 text-white px-4 py-2 rounded-full text-sm md:text-base font-bold">
-                      BEFORE
-                    </div>
-                  </ComparisonItem>
-                  <ComparisonItem position="right">
-                    <img
-                      src="https://p9xcezb73lfrkkkg.public.blob.vercel-storage.com/images/tattooo.jpg"
-                      alt="After - With tattoo preview"
-                      className="absolute inset-0 h-full w-full object-cover object-bottom"
-                    />
-                    <div className="absolute bottom-6 right-6 bg-yellow-400 text-black px-4 py-2 rounded-full text-sm md:text-base font-bold">
-                      AFTER
-                    </div>
-                  </ComparisonItem>
-                  <ComparisonHandle />
-                </div>
-              </Comparison>
+        <section
+          className="border-y bg-white py-8"
+          aria-label="Trust indicators"
+        >
+          <div className="container mx-auto max-w-6xl px-4">
+            <div className="flex flex-wrap items-center justify-center gap-8 text-center">
+              <div>
+                <p className="text-2xl font-bold">10,000+</p>
+                <p className="text-sm text-muted-foreground">Happy Customers</p>
+              </div>
+              <Separator
+                orientation="vertical"
+                className="h-8 hidden sm:block"
+              />
+              <div>
+                <p className="text-2xl font-bold">500+</p>
+                <p className="text-sm text-muted-foreground">Tattoo Artists</p>
+              </div>
+              <Separator
+                orientation="vertical"
+                className="h-8 hidden sm:block"
+              />
+              <div>
+                <p className="text-2xl font-bold">4.9/5</p>
+                <p className="text-sm text-muted-foreground">Star Rating</p>
+              </div>
+              <Separator
+                orientation="vertical"
+                className="h-8 hidden sm:block"
+              />
+              <div>
+                <p className="text-2xl font-bold">30-60s</p>
+                <p className="text-sm text-muted-foreground">Generation Time</p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Tattoo Gallery */}
-      {/* <section id="gallery">
+        {/* How It Works */}
+        <section id="features" className="bg-yellow-50">
+          <Features1 />
+        </section>
+
+        {/* Video Demo Section */}
+        <section className="bg-white py-20">
+          <div className="container mx-auto px-4">
+            <div className="max-w-5xl mx-auto">
+              {/* Centered Title */}
+              <div className="text-center mb-12">
+                <span className="text-yellow-500 font-bold text-sm uppercase tracking-wider">
+                  Watch Demo
+                </span>
+                <h2 className="text-4xl md:text-5xl font-bold mt-2">
+                  See It In <span className="text-yellow-400">Action</span>
+                </h2>
+                <p className="text-xl text-gray-600 leading-relaxed mt-4 max-w-3xl mx-auto">
+                  Watch how easy it is to preview tattoos on your skin before
+                  committing. Transform any design into a realistic preview in
+                  seconds.
+                </p>
+              </div>
+
+              {/* Large Video Player */}
+              <DemoVideoPlayer />
+            </div>
+          </div>
+        </section>
+
+        {/* Before/After Comparison Section */}
+        <section className="bg-yellow-50 py-20">
+          <div className="container mx-auto px-4">
+            <div className="max-w-6xl mx-auto">
+              {/* Section Title */}
+              <div className="text-center mb-12">
+                <span className="text-yellow-600 font-bold text-sm uppercase tracking-wider">
+                  See The Difference
+                </span>
+                <h2 className="text-4xl md:text-5xl font-bold mt-2">
+                  Before & <span className="text-yellow-500">After</span>
+                </h2>
+                <p className="text-xl text-gray-600 leading-relaxed mt-4 max-w-3xl mx-auto">
+                  Drag the slider to see how our AI transforms your skin with
+                  realistic tattoo previews
+                </p>
+              </div>
+
+              {/* Comparison Component - Better aspect ratio for tattoo display */}
+              <div className="w-full">
+                <Comparison
+                  mode="drag"
+                  className="rounded-xl overflow-hidden shadow-2xl"
+                >
+                  <div className="relative aspect-[4/3] md:aspect-[16/10]">
+                    <ComparisonItem position="left">
+                      <img
+                        src="https://p9xcezb73lfrkkkg.public.blob.vercel-storage.com/images/tattoo-image-slider-before.png"
+                        alt="Before - Original skin"
+                        className="absolute inset-0 h-full w-full object-cover object-center"
+                      />
+                      <div className="absolute bottom-6 left-6 bg-black/70 text-white px-4 py-2 rounded-full text-sm md:text-base font-bold">
+                        BEFORE
+                      </div>
+                    </ComparisonItem>
+                    <ComparisonItem position="right">
+                      <img
+                        src="https://p9xcezb73lfrkkkg.public.blob.vercel-storage.com/images/tattoo-final-slider.png"
+                        alt="After - With tattoo preview"
+                        className="absolute inset-0 h-full w-full object-cover object-center"
+                      />
+                      <div className="absolute bottom-6 right-6 bg-yellow-400 text-black px-4 py-2 rounded-full text-sm md:text-base font-bold">
+                        AFTER
+                      </div>
+                    </ComparisonItem>
+                    <ComparisonHandle />
+                  </div>
+                </Comparison>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* First CTA Section */}
+        <CTASection variant="primary" />
+
+        {/* Tattoo Gallery */}
+        {/* <section id="gallery">
         <TattooGallery />
       </section> */}
 
-      {/* Features Grid */}
-      <section className="bg-white">
-        <Features />
-      </section>
+        {/* Features Grid */}
+        <section className="bg-white">
+          <Features />
+        </section>
 
-      {/* Gallery Section */}
-      <section id="gallery" className="py-20 bg-yellow-50">
-        <div className="container mx-auto max-w-6xl px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Gallery</h2>
-          <p className="text-muted-foreground">Coming soon - See amazing tattoo previews created by our users</p>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="bg-white">
-        <Pricing />
-      </section>
-
-      {/* Testimonials */}
-      <section className="bg-yellow-50">
-        <WallOfLoveSection />
-      </section>
-
-      {/* FAQ Section */}
-      <section className="bg-white">
-        <FAQsTwo />
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black" aria-label="Call to action">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            Ready to Transform Your Tattoo Business?
-          </h2>
-          <p className="text-xl mb-8">
-            Join 500+ artists already using our platform. Start with 3 free
-            previews today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/sign-up">
-              <Button size="lg" className="bg-black text-yellow-400 hover:bg-gray-900 min-w-[200px]">
-                Start Free Trial
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/pricing">
-              <Button
-                size="lg"
-                variant="outline"
-                className="min-w-[200px] bg-transparent text-black border-black hover:bg-black hover:text-yellow-400"
-              >
-                View Pricing
-                <CreditCard className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+        {/* Gallery Section */}
+        <section id="gallery" className="py-20 bg-yellow-50">
+          <div className="container mx-auto max-w-6xl px-4 text-center">
+            <h2 className="text-3xl font-bold mb-4">Gallery</h2>
+            <p className="text-muted-foreground">
+              Coming soon - See amazing tattoo previews created by our users
+            </p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Footer */}
-      <FooterSection />
-    </main>
+        {/* Pricing Section */}
+        <section id="pricing" className="bg-white">
+          <Pricing />
+        </section>
+
+        {/* Testimonials */}
+        <section className="bg-yellow-50">
+          <WallOfLoveSection />
+        </section>
+
+        {/* FAQ Section */}
+        <section className="bg-white">
+          <FAQsTwo />
+        </section>
+
+        {/* Second CTA Section */}
+        <CTASection variant="secondary" />
+
+        {/* Footer */}
+        <FooterSection />
+      </main>
     </>
   );
 }

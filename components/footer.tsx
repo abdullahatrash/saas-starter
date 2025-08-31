@@ -183,7 +183,7 @@ export default function FooterSection() {
         </div>
         <span className="text-muted-foreground block text-center text-sm">
           {" "}
-          © {new Date().getFullYear()} TattooPreview, All rights reserved
+          © {new Date().getFullYear()} , FLOW LEAP, All rights reserved
         </span>
       </div>
     </footer>
