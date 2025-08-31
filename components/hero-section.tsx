@@ -1,13 +1,20 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
+import {
+  Menu,
+  X,
+  LogOut,
+  User as UserIcon,
+  LayoutDashboard,
+  Palette,
+} from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useRef, Suspense } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { signOut } from "@/app/(login)/actions";
@@ -26,13 +33,13 @@ const menuItems = [
 
 function UserMenu() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { data: user } = useSWR<User>('/api/user', fetcher);
+  const { data: user } = useSWR<User>("/api/user", fetcher);
   const router = useRouter();
 
   async function handleSignOut() {
     await signOut();
-    mutate('/api/user');
-    router.push('/');
+    mutate("/api/user");
+    router.push("/");
   }
 
   if (!user) {
@@ -65,27 +72,32 @@ function UserMenu() {
   return (
     <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-yellow-400/10 hover:bg-yellow-400/20">
-          <Avatar className="h-9 w-9">
-            <AvatarImage alt={user.name || ''} />
+        <Button
+          variant="ghost"
+          className="relative h-9 w-9 rounded-full bg-yellow-400/10 hover:bg-yellow-400/20 cursor-pointer"
+        >
+          <Avatar className="h-9 w-9 cursor-pointer">
+            <AvatarImage alt={user.name || ""} />
             <AvatarFallback className="bg-yellow-400 text-black">
-              {user.email?.charAt(0).toUpperCase() || 'U'}
+              {user.email?.charAt(0).toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem className="font-medium">
+        <DropdownMenuItem className="font-medium cursor-default">
           <UserIcon className="mr-2 h-4 w-4" />
           {user.email}
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
           <Link href="/dashboard" className="flex w-full items-center">
+            <LayoutDashboard className="mr-2 h-4 w-4" />
             Dashboard
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
           <Link href="/studio" className="flex w-full items-center">
+            <Palette className="mr-2 h-4 w-4" />
             Tattoo Studio
           </Link>
         </DropdownMenuItem>
@@ -105,6 +117,7 @@ function UserMenu() {
 export default function HeroSection() {
   const [menuState, setMenuState] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { data: user } = useSWR<User>("/api/user", fetcher);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -206,12 +219,14 @@ export default function HeroSection() {
                 </div>
 
                 <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit lg:border-l lg:pl-6">
-                  <Suspense fallback={
-                    <div className="flex gap-3">
-                      <div className="h-9 w-20 bg-yellow-400/20 rounded animate-pulse" />
-                      <div className="h-9 w-20 bg-yellow-400/20 rounded animate-pulse" />
-                    </div>
-                  }>
+                  <Suspense
+                    fallback={
+                      <div className="flex gap-3">
+                        <div className="h-9 w-20 bg-yellow-400/20 rounded animate-pulse" />
+                        <div className="h-9 w-20 bg-yellow-400/20 rounded animate-pulse" />
+                      </div>
+                    }
+                  >
                     <UserMenu />
                   </Suspense>
                 </div>
@@ -269,24 +284,47 @@ export default function HeroSection() {
 
                 <div className="mt-10">
                   <div className="mx-auto lg:ml-0 w-full max-w-sm sm:max-w-none sm:w-fit">
-                    <Link href="/sign-up" className="block w-full sm:w-auto">
+                    <Link
+                      href={user ? "/studio" : "/sign-up"}
+                      className="block w-full sm:w-auto"
+                    >
                       <Button
                         size="lg"
-                        className="bg-yellow-400 hover:bg-yellow-500 text-black font-black uppercase tracking-wide px-6 py-6 text-base sm:text-lg shadow-lg hover:shadow-xl transition-all w-full sm:w-auto whitespace-normal sm:whitespace-nowrap"
+                        className="bg-yellow-400 hover:bg-yellow-500 text-black font-black uppercase tracking-wide px-6 py-6 text-base sm:text-lg shadow-lg hover:shadow-xl transition-all w-full sm:w-auto whitespace-normal sm:whitespace-nowrap cursor-pointer"
                       >
-                        <span className="block sm:hidden">
-                          Start Free Preview →
-                        </span>
-                        <span className="hidden sm:block">
-                          Start Your First AI Tattoo Free Preview →
-                        </span>
+                        {user ? (
+                          <>
+                            <span className="block sm:hidden">
+                              Go to Studio →
+                            </span>
+                            <span className="hidden sm:block">
+                              Create Your AI Tattoo Preview →
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="block sm:hidden">
+                              Start Free Preview →
+                            </span>
+                            <span className="hidden sm:block">
+                              Start Your First AI Tattoo Free Preview →
+                            </span>
+                          </>
+                        )}
                       </Button>
                     </Link>
                   </div>
 
-                  <p className="mt-4 text-sm text-gray-400 text-center lg:text-left">
-                    No credit card required • 3 free previews
-                  </p>
+                  {!user && (
+                    <p className="mt-4 text-sm text-gray-400 text-center lg:text-left">
+                      No credit card required • 3 free previews
+                    </p>
+                  )}
+                  {user && (
+                    <p className="mt-4 text-sm text-gray-400 text-center lg:text-left">
+                      Ready to create your next tattoo preview
+                    </p>
+                  )}
                 </div>
               </div>
 

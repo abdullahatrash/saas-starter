@@ -24,7 +24,11 @@ export async function createCheckoutSession({
     redirect(`/sign-up?redirect=checkout&priceId=${priceId}`);
   }
 
-  const session = await stripe.checkout.sessions.create({
+  // Fetch the price to determine if it's recurring or one-time
+  const price = await stripe.prices.retrieve(priceId);
+  const isSubscription = price.type === 'recurring';
+
+  const sessionConfig: Stripe.Checkout.SessionCreateParams = {
     payment_method_types: ['card'],
     line_items: [
       {
@@ -32,16 +36,31 @@ export async function createCheckoutSession({
         quantity: 1
       }
     ],
-    mode: 'subscription',
+    mode: isSubscription ? 'subscription' : 'payment',
     success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.BASE_URL}/pricing`,
     customer: team.stripeCustomerId || undefined,
     client_reference_id: user.id.toString(),
     allow_promotion_codes: true,
-    subscription_data: {
-      trial_period_days: 14
+    metadata: {
+      userId: user.id.toString(),
+      teamId: team.id.toString(),
+      priceId: priceId
     }
-  });
+  };
+
+  // Only add subscription_data for subscription mode
+  if (isSubscription) {
+    sessionConfig.subscription_data = {
+      trial_period_days: 14,
+      metadata: {
+        userId: user.id.toString(),
+        teamId: team.id.toString()
+      }
+    };
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionConfig);
 
   redirect(session.url!);
 }

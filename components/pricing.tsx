@@ -11,13 +11,88 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, Sparkles, Clock } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Check, Sparkles, Clock, Zap } from "lucide-react";
 
 export default function Pricing() {
-  const [billingCycle, setBillingCycle] = useState<"yearly" | "monthly">(
-    "yearly"
-  );
+  const [billingCycle, setBillingCycle] = useState<
+    "yearly" | "monthly" | "credits"
+  >("yearly");
+
+  const creditPacks = [
+    {
+      name: "Starter Pack",
+      credits: 10,
+      price: 4.99,
+      features: [
+        "10 tattoo previews",
+        "Never expires",
+        "All basic features",
+        "Email support",
+      ],
+      popular: false,
+      cta: "Buy Now",
+      variant: "outline" as const,
+    },
+    {
+      name: "Professional",
+      credits: 25,
+      price: 9.99,
+      features: [
+        "25 tattoo previews",
+        "Never expires",
+        "Priority processing",
+        "All features included",
+      ],
+      popular: false,
+      cta: "Buy Now",
+      variant: "outline" as const,
+    },
+    {
+      name: "Studio Pack",
+      credits: 60,
+      price: 19.99,
+      features: [
+        "60 tattoo previews",
+        "Never expires",
+        "Priority support",
+        "Bulk download",
+        "Gallery storage",
+      ],
+      popular: true,
+      cta: "Most Popular",
+      variant: "default" as const,
+    },
+    {
+      name: "Enterprise",
+      credits: 150,
+      price: 39.99,
+      features: [
+        "150 tattoo previews",
+        "Never expires",
+        "Dedicated support",
+        "Advanced features",
+      ],
+      popular: false,
+      cta: "Buy Now",
+      variant: "outline" as const,
+    },
+    {
+      name: "Bulk Deal",
+      credits: 500,
+      price: 99.99,
+      features: [
+        "500 tattoo previews",
+        "Never expires",
+        "White label options",
+        "Custom integrations",
+        "24/7 priority support",
+      ],
+      popular: false,
+      cta: "Best Value",
+      variant: "outline" as const,
+    },
+  ];
 
   const plans = [
     {
@@ -25,7 +100,7 @@ export default function Pricing() {
       monthlyPrice: 19,
       yearlyPrice: 10,
       features: [
-        "50 AI tattoo previews",
+        "50 AI tattoo previews/month",
         "Basic tattoo styles",
         "Standard processing",
         "Download your tattoo preview",
@@ -39,7 +114,7 @@ export default function Pricing() {
       monthlyPrice: 49,
       yearlyPrice: 29,
       features: [
-        "200 AI tattoo previews",
+        "200 AI tattoo previews/month",
         "All tattoo styles",
         "Priority processing",
         "Download your tattoo preview",
@@ -92,10 +167,18 @@ export default function Pricing() {
 
         <Tabs
           value={billingCycle}
-          onValueChange={(v) => setBillingCycle(v as "yearly" | "monthly")}
+          onValueChange={(v) =>
+            setBillingCycle(v as "yearly" | "monthly" | "credits")
+          }
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
+            <TabsTrigger value="credits">
+              <div className="flex items-center gap-1">
+                <Zap className="h-3 w-3" />
+                Credit Packs
+              </div>
+            </TabsTrigger>
             <TabsTrigger value="monthly">Monthly</TabsTrigger>
             <TabsTrigger value="yearly">
               <div className="flex items-center gap-2">
@@ -107,32 +190,143 @@ export default function Pricing() {
             </TabsTrigger>
           </TabsList>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {plans.map((plan) => (
-              <Card
-                key={plan.name}
-                className={`relative flex flex-col ${
-                  plan.popular ? "border-yellow-400 shadow-lg scale-105" : ""
-                }`}
-              >
-                {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black hover:bg-yellow-500">
-                    Most Popular
-                  </Badge>
-                )}
-                <CardHeader>
-                  <CardTitle className="font-bold text-xl">
-                    {plan.name}
-                  </CardTitle>
-                  <div className="mt-4">
-                    <span className="text-3xl font-bold">
-                      $
-                      {billingCycle === "yearly"
-                        ? plan.yearlyPrice
-                        : plan.monthlyPrice}
-                    </span>
-                    <span className="text-muted-foreground">/month</span>
-                    {billingCycle === "yearly" && (
+          <TabsContent value="credits">
+            <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-5">
+              {creditPacks.map((pack) => (
+                <Card
+                  key={pack.name}
+                  className={`relative flex flex-col ${
+                    pack.popular ? "border-yellow-400 shadow-lg scale-105" : ""
+                  }`}
+                >
+                  {pack.popular && (
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black hover:bg-yellow-500">
+                      Most Popular
+                    </Badge>
+                  )}
+                  <CardHeader className="pb-3">
+                    <CardTitle className="font-bold text-lg text-center">
+                      {pack.name}
+                    </CardTitle>
+                    <div className="mt-4 text-center">
+                      <span className="text-3xl font-bold">${pack.price}</span>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {pack.credits} credits
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="flex-1">
+                    <ul className="space-y-2 text-sm">
+                      {pack.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                          <span className="text-xs">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+
+                  <CardFooter className="pt-3">
+                    <Button
+                      asChild
+                      variant={pack.popular ? "default" : "outline"}
+                      className={`w-full ${
+                        pack.popular
+                          ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                          : ""
+                      }`}
+                    >
+                      <Link href="/sign-up">{pack.cta}</Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="monthly">
+            <div className="grid gap-6 md:grid-cols-3">
+              {plans.map((plan) => (
+                <Card
+                  key={plan.name}
+                  className={`relative flex flex-col ${
+                    plan.popular ? "border-yellow-400 shadow-lg scale-105" : ""
+                  }`}
+                >
+                  {plan.popular && (
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black hover:bg-yellow-500">
+                      Most Popular
+                    </Badge>
+                  )}
+                  <CardHeader>
+                    <CardTitle className="font-bold text-xl">
+                      {plan.name}
+                    </CardTitle>
+                    <div className="mt-4">
+                      <span className="text-3xl font-bold">
+                        ${plan.monthlyPrice}
+                      </span>
+                      <span className="text-muted-foreground">/month</span>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="flex-1">
+                    <ul className="space-y-3 text-sm">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+
+                  <CardFooter>
+                    <Button
+                      asChild
+                      variant={plan.popular ? "default" : "outline"}
+                      className={`w-full ${
+                        plan.popular
+                          ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                          : ""
+                      }`}
+                    >
+                      <Link
+                        href={plan.name === "Premium" ? "/contact" : "/sign-up"}
+                      >
+                        {plan.cta}
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="yearly">
+            <div className="grid gap-6 md:grid-cols-3">
+              {plans.map((plan) => (
+                <Card
+                  key={plan.name}
+                  className={`relative flex flex-col ${
+                    plan.popular ? "border-yellow-400 shadow-lg scale-105" : ""
+                  }`}
+                >
+                  {plan.popular && (
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black hover:bg-yellow-500">
+                      Most Popular
+                    </Badge>
+                  )}
+                  <CardHeader>
+                    <CardTitle className="font-bold text-xl">
+                      {plan.name}
+                    </CardTitle>
+                    <div className="mt-4">
+                      <span className="text-3xl font-bold">
+                        ${plan.yearlyPrice}
+                      </span>
+                      <span className="text-muted-foreground">/month</span>
                       <div className="mt-2">
                         <span className="text-sm line-through text-muted-foreground">
                           ${plan.monthlyPrice * 12}
@@ -141,41 +335,41 @@ export default function Pricing() {
                           ${plan.yearlyPrice * 12}/year
                         </span>
                       </div>
-                    )}
-                  </div>
-                </CardHeader>
+                    </div>
+                  </CardHeader>
 
-                <CardContent className="flex-1">
-                  <ul className="space-y-3 text-sm">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
+                  <CardContent className="flex-1">
+                    <ul className="space-y-3 text-sm">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
 
-                <CardFooter>
-                  <Button
-                    asChild
-                    variant={plan.popular ? "default" : "outline"}
-                    className={`w-full ${
-                      plan.popular
-                        ? "bg-yellow-400 text-black hover:bg-yellow-500"
-                        : ""
-                    }`}
-                  >
-                    <Link
-                      href={plan.name === "Premium" ? "/contact" : "/sign-up"}
+                  <CardFooter>
+                    <Button
+                      asChild
+                      variant={plan.popular ? "default" : "outline"}
+                      className={`w-full ${
+                        plan.popular
+                          ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                          : ""
+                      }`}
                     >
-                      {plan.cta}
-                    </Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+                      <Link
+                        href={plan.name === "Premium" ? "/contact" : "/sign-up"}
+                      >
+                        {plan.cta}
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
         </Tabs>
 
         <div className="mt-16 bg-yellow-50 rounded-lg p-8 text-center">

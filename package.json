@@ -11,6 +11,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@origin-space/image-cropper": "^0.1.9",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-label": "^2.1.7",
@@ -42,6 +43,7 @@
     "radix-ui": "^1.4.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-medium-image-zoom": "^5.3.0",
     "replicate": "^1.1.0",
     "server-only": "^0.0.1",
     "stripe": "^18.1.0",

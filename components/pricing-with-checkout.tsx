@@ -11,29 +11,111 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, Sparkles, Clock } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Check, Sparkles, Clock, Zap } from "lucide-react";
+import { STRIPE_PRICE_IDS } from "@/lib/stripe-price-ids";
 
 interface PricingWithCheckoutProps {
   checkoutAction?: (formData: FormData) => Promise<void>;
 }
 
 export default function PricingWithCheckout({ checkoutAction }: PricingWithCheckoutProps) {
-  const [billingCycle, setBillingCycle] = useState<"yearly" | "monthly">(
+  const [billingCycle, setBillingCycle] = useState<"yearly" | "monthly" | "credits">(
     "yearly"
   );
 
-  // These would normally come from Stripe products
-  // You'll need to create these products in your Stripe dashboard
+  // Credit Packs with actual Stripe price IDs
+  const creditPacks = [
+    {
+      name: "Starter Pack",
+      credits: 10,
+      price: 4.99,
+      priceId: STRIPE_PRICE_IDS.creditPacks.starterPack,
+      features: [
+        "10 tattoo previews",
+        "Never expires",
+        "All basic features",
+        "Email support",
+      ],
+      popular: false,
+      cta: "Buy Now",
+      variant: "outline" as const,
+    },
+    {
+      name: "Professional",
+      credits: 25,
+      price: 9.99,
+      priceId: STRIPE_PRICE_IDS.creditPacks.professional,
+      features: [
+        "25 tattoo previews",
+        "Never expires",
+        "Priority processing",
+        "All features included",
+      ],
+      popular: false,
+      cta: "Buy Now",
+      variant: "outline" as const,
+    },
+    {
+      name: "Studio Pack",
+      credits: 60,
+      price: 19.99,
+      priceId: STRIPE_PRICE_IDS.creditPacks.studioPack,
+      features: [
+        "60 tattoo previews",
+        "Never expires",
+        "Priority support",
+        "Bulk download",
+        "Gallery storage",
+      ],
+      popular: true,
+      cta: "Most Popular",
+      variant: "default" as const,
+    },
+    {
+      name: "Enterprise",
+      credits: 150,
+      price: 39.99,
+      priceId: STRIPE_PRICE_IDS.creditPacks.enterprise,
+      features: [
+        "150 tattoo previews",
+        "Never expires",
+        "Dedicated support",
+        "API access",
+        "Advanced features",
+      ],
+      popular: false,
+      cta: "Buy Now",
+      variant: "outline" as const,
+    },
+    {
+      name: "Bulk Deal",
+      credits: 500,
+      price: 99.99,
+      priceId: STRIPE_PRICE_IDS.creditPacks.bulkDeal,
+      features: [
+        "500 tattoo previews",
+        "Never expires",
+        "White label options",
+        "Custom integrations",
+        "24/7 priority support",
+      ],
+      popular: false,
+      cta: "Best Value",
+      variant: "outline" as const,
+    },
+  ];
+
+  // Subscription Plans with actual Stripe price IDs
   const plans = [
     {
       name: "Starter",
       monthlyPrice: 19,
-      yearlyPrice: 15,
-      monthlyPriceId: "price_starter_monthly", // Replace with actual Stripe price ID
-      yearlyPriceId: "price_starter_yearly",   // Replace with actual Stripe price ID
+      yearlyPrice: 10,
+      monthlyPriceId: STRIPE_PRICE_IDS.subscriptions.monthly.starter,
+      yearlyPriceId: STRIPE_PRICE_IDS.subscriptions.yearly.starter,
       features: [
-        "50 AI tattoo previews",
+        "50 AI tattoo previews/month",
         "Basic tattoo styles",
         "Standard processing",
         "Download your tattoo preview",
@@ -45,18 +127,17 @@ export default function PricingWithCheckout({ checkoutAction }: PricingWithCheck
     {
       name: "Pro",
       monthlyPrice: 49,
-      yearlyPrice: 39,
-      monthlyPriceId: "price_pro_monthly", // Replace with actual Stripe price ID
-      yearlyPriceId: "price_pro_yearly",   // Replace with actual Stripe price ID
+      yearlyPrice: 29,
+      monthlyPriceId: STRIPE_PRICE_IDS.subscriptions.monthly.pro,
+      yearlyPriceId: STRIPE_PRICE_IDS.subscriptions.yearly.pro,
       features: [
-        "200 AI tattoo previews",
+        "200 AI tattoo previews/month",
         "All tattoo styles",
         "Priority processing",
         "Download your tattoo preview",
         "Remove watermarks",
         "Priority support",
         "Access to new features first",
-        "Email support",
       ],
       popular: true,
       cta: "Start Free Trial",
@@ -65,9 +146,9 @@ export default function PricingWithCheckout({ checkoutAction }: PricingWithCheck
     {
       name: "Premium",
       monthlyPrice: 99,
-      yearlyPrice: 79,
-      monthlyPriceId: "price_premium_monthly", // Replace with actual Stripe price ID
-      yearlyPriceId: "price_premium_yearly",   // Replace with actual Stripe price ID
+      yearlyPrice: 49,
+      monthlyPriceId: STRIPE_PRICE_IDS.subscriptions.monthly.premium,
+      yearlyPriceId: STRIPE_PRICE_IDS.subscriptions.yearly.premium,
       features: [
         "Unlimited previews",
         "Priority in queue",
@@ -104,10 +185,16 @@ export default function PricingWithCheckout({ checkoutAction }: PricingWithCheck
 
         <Tabs
           value={billingCycle}
-          onValueChange={(v) => setBillingCycle(v as "yearly" | "monthly")}
+          onValueChange={(v) => setBillingCycle(v as "yearly" | "monthly" | "credits")}
           className="w-full"
         >
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
+          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3 mb-8">
+            <TabsTrigger value="credits">
+              <div className="flex items-center gap-1">
+                <Zap className="h-3 w-3" />
+                Credit Packs
+              </div>
+            </TabsTrigger>
             <TabsTrigger value="monthly">Monthly</TabsTrigger>
             <TabsTrigger value="yearly">
               <div className="flex items-center gap-2">
@@ -119,9 +206,90 @@ export default function PricingWithCheckout({ checkoutAction }: PricingWithCheck
             </TabsTrigger>
           </TabsList>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {plans.map((plan) => (
-              <Card
+          <TabsContent value="credits">
+            <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-5">
+              {creditPacks.map((pack) => (
+                <Card
+                  key={pack.name}
+                  className={`relative flex flex-col ${
+                    pack.popular ? "border-yellow-400 shadow-lg scale-105" : ""
+                  }`}
+                >
+                  {pack.popular && (
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black hover:bg-yellow-500">
+                      Most Popular
+                    </Badge>
+                  )}
+                  <CardHeader className="pb-3">
+                    <CardTitle className="font-bold text-lg text-center">
+                      {pack.name}
+                    </CardTitle>
+                    <div className="mt-4 text-center">
+                      <span className="text-3xl font-bold">
+                        ${pack.price}
+                      </span>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {pack.credits} credits
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="flex-1">
+                    <ul className="space-y-2 text-sm">
+                      {pack.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                          <span className="text-xs">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+
+                  <CardFooter className="pt-3">
+                    {checkoutAction ? (
+                      <form action={checkoutAction} className="w-full">
+                        <input
+                          type="hidden"
+                          name="priceId"
+                          value={pack.priceId}
+                        />
+                        <Button
+                          type="submit"
+                          variant={pack.popular ? "default" : "outline"}
+                          className={`w-full ${
+                            pack.popular
+                              ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                              : ""
+                          }`}
+                        >
+                          {pack.cta}
+                        </Button>
+                      </form>
+                    ) : (
+                      <Button
+                        asChild
+                        variant={pack.popular ? "default" : "outline"}
+                        className={`w-full ${
+                          pack.popular
+                            ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                            : ""
+                        }`}
+                      >
+                        <Link href="/sign-up">
+                          {pack.cta}
+                        </Link>
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="monthly">
+            <div className="grid gap-6 md:grid-cols-3">
+              {plans.map((plan) => (
+                <Card
                 key={plan.name}
                 className={`relative flex flex-col ${
                   plan.popular ? "border-yellow-400 shadow-lg scale-105" : ""
@@ -214,9 +382,106 @@ export default function PricingWithCheckout({ checkoutAction }: PricingWithCheck
                     </Button>
                   )}
                 </CardFooter>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="yearly">
+            <div className="grid gap-6 md:grid-cols-3">
+              {plans.map((plan) => (
+                <Card
+                  key={plan.name}
+                  className={`relative flex flex-col ${
+                    plan.popular ? "border-yellow-400 shadow-lg scale-105" : ""
+                  }`}
+                >
+                  {plan.popular && (
+                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black hover:bg-yellow-500">
+                      Most Popular
+                    </Badge>
+                  )}
+                  <CardHeader>
+                    <CardTitle className="font-bold text-xl">
+                      {plan.name}
+                    </CardTitle>
+                    <div className="mt-4">
+                      <span className="text-3xl font-bold">
+                        ${plan.yearlyPrice}
+                      </span>
+                      <span className="text-muted-foreground">/month</span>
+                      <div className="mt-2">
+                        <span className="text-sm line-through text-muted-foreground">
+                          ${plan.monthlyPrice * 12}
+                        </span>
+                        <span className="text-sm text-green-600 ml-2">
+                          ${plan.yearlyPrice * 12}/year
+                        </span>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="flex-1">
+                    <ul className="space-y-3 text-sm">
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+
+                  <CardFooter>
+                    {plan.name === "Premium" ? (
+                      <Button
+                        asChild
+                        variant={plan.variant}
+                        className="w-full"
+                      >
+                        <Link href="/contact">
+                          {plan.cta}
+                        </Link>
+                      </Button>
+                    ) : checkoutAction ? (
+                      <form action={checkoutAction} className="w-full">
+                        <input
+                          type="hidden"
+                          name="priceId"
+                          value={plan.yearlyPriceId}
+                        />
+                        <Button
+                          type="submit"
+                          variant={plan.popular ? "default" : "outline"}
+                          className={`w-full ${
+                            plan.popular
+                              ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                              : ""
+                          }`}
+                        >
+                          {plan.cta}
+                        </Button>
+                      </form>
+                    ) : (
+                      <Button
+                        asChild
+                        variant={plan.popular ? "default" : "outline"}
+                        className={`w-full ${
+                          plan.popular
+                            ? "bg-yellow-400 text-black hover:bg-yellow-500"
+                            : ""
+                        }`}
+                      >
+                        <Link href="/sign-up">
+                          {plan.cta}
+                        </Link>
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
         </Tabs>
 
         <div className="mt-16 bg-yellow-50 rounded-lg p-8 text-center">
