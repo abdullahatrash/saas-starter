@@ -11,7 +11,6 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { customerPortalAction } from '@/lib/payments/actions';
 import { User } from '@/lib/db/schema';
 import useSWR from 'swr';
 import { Suspense } from 'react';
@@ -53,7 +52,7 @@ function AccountOverview() {
           Account Overview
         </CardTitle>
         <CardDescription>
-          Manage your personal account and subscription
+          Manage your personal account and credits
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -92,19 +91,15 @@ function AccountOverview() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Current Plan</p>
+              <p className="text-sm text-muted-foreground">Account Status</p>
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-muted-foreground" />
-                {dashboard?.subscription?.planType === 'subscription' ? (
-                  <Badge variant="default" className="bg-purple-500">
-                    {dashboard.subscription.type}
-                  </Badge>
-                ) : dashboard?.subscription?.hasCredits ? (
-                  <Badge variant="outline" className="border-green-400 text-green-600">
-                    Pay As You Go
+                {dashboard?.credits > 0 ? (
+                  <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                    Active
                   </Badge>
                 ) : (
-                  <Badge variant="secondary">Free Plan</Badge>
+                  <Badge variant="secondary">No Credits</Badge>
                 )}
               </div>
             </div>
@@ -187,10 +182,10 @@ function SubscriptionManagement() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="h-5 w-5" />
-          Billing & Subscription
+          Credits & Billing
         </CardTitle>
         <CardDescription>
-          Manage your payment methods and subscription
+          Manage your credits and view purchase history
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -198,46 +193,26 @@ function SubscriptionManagement() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div className="mb-4 sm:mb-0">
               <p className="font-medium">
-                Current Status: {
-                  dashboard?.subscription?.planType === 'subscription' 
-                    ? (dashboard?.subscription?.type || 'Free')
-                    : dashboard?.subscription?.hasCredits 
-                      ? 'Pay As You Go' 
-                      : 'Free Account'
-                }
+                Credit Balance: {dashboard?.credits || 0} credits
               </p>
               <p className="text-sm text-muted-foreground">
-                {dashboard?.subscription?.status === 'active'
-                  ? 'Auto-renews monthly'
-                  : dashboard?.subscription?.status === 'trialing'
-                  ? 'In trial period'
-                  : dashboard?.credits > 0
-                    ? `${dashboard.credits} credits remaining`
-                    : 'No active plan'}
+                {dashboard?.credits > 0
+                  ? `Ready for ${dashboard.credits} tattoo previews`
+                  : 'Purchase credits to get started'}
               </p>
             </div>
             <div className="flex gap-2">
-              {dashboard?.subscription?.isActive ? (
-                <form action={customerPortalAction}>
-                  <Button type="submit" variant="outline">
-                    Manage Billing
-                  </Button>
-                </form>
-              ) : (
-                <>
-                  <Button asChild variant="default" className="bg-yellow-500 hover:bg-yellow-600">
-                    <Link href="/pricing">
-                      <Coins className="mr-2 h-4 w-4" />
-                      Buy Credits
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/pricing">
-                      View Plans
-                    </Link>
-                  </Button>
-                </>
-              )}
+              <Button asChild className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
+                <Link href="/pricing">
+                  <Coins className="mr-2 h-4 w-4" />
+                  Buy More Credits
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/dashboard/credits">
+                  View History
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -280,7 +255,7 @@ function RecentActivity() {
           Recent Purchases
         </CardTitle>
         <CardDescription>
-          Your recent credit purchases and subscriptions
+          Your recent credit purchases
         </CardDescription>
       </CardHeader>
       <CardContent>

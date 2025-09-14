@@ -24,9 +24,8 @@ export async function createCheckoutSession({
     redirect(`/sign-up?redirect=checkout&priceId=${priceId}`);
   }
 
-  // Fetch the price to determine if it's recurring or one-time
-  const price = await stripe.prices.retrieve(priceId);
-  const isSubscription = price.type === 'recurring';
+  // Simplified - we only have one-time credit pack purchases now
+  const isSubscription = false;
 
   const sessionConfig: Stripe.Checkout.SessionCreateParams = {
     payment_method_types: ['card'],
@@ -49,16 +48,7 @@ export async function createCheckoutSession({
     }
   };
 
-  // Only add subscription_data for subscription mode
-  if (isSubscription) {
-    sessionConfig.subscription_data = {
-      trial_period_days: 14,
-      metadata: {
-        userId: user.id.toString(),
-        teamId: team.id.toString()
-      }
-    };
-  }
+  // No subscriptions - only one-time credit pack purchases
 
   const session = await stripe.checkout.sessions.create(sessionConfig);
 

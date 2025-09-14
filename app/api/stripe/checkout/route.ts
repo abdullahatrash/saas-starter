@@ -5,7 +5,7 @@ import { setSession } from '@/lib/auth/session';
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/payments/stripe';
 import { addCredits } from '@/lib/entitlements';
-import { CREDIT_AMOUNTS } from '@/lib/stripe-price-ids';
+import { CREDIT_PACK } from '@/lib/stripe-price-ids';
 import Stripe from 'stripe';
 
 export async function GET(request: NextRequest) {
@@ -54,21 +54,9 @@ export async function GET(request: NextRequest) {
 
       // Extract product info
       const product = price.product as Stripe.Product;
-      const productName = product.name.toLowerCase().replace(/\s+/g, '');
-      
-      // Map product name to credit amount
-      let creditsToAdd = 0;
-      if (productName.includes('starter')) {
-        creditsToAdd = CREDIT_AMOUNTS.starterPack;
-      } else if (productName.includes('professional')) {
-        creditsToAdd = CREDIT_AMOUNTS.professional;
-      } else if (productName.includes('studio')) {
-        creditsToAdd = CREDIT_AMOUNTS.studioPack;
-      } else if (productName.includes('enterprise')) {
-        creditsToAdd = CREDIT_AMOUNTS.enterprise;
-      } else if (productName.includes('bulk')) {
-        creditsToAdd = CREDIT_AMOUNTS.bulkDeal;
-      }
+
+      // Since we only have one credit pack now, always add 10 credits
+      const creditsToAdd = CREDIT_PACK.credits;
 
       if (creditsToAdd > 0) {
         // Add credits to user account
@@ -82,7 +70,7 @@ export async function GET(request: NextRequest) {
           stripeSessionId: sessionId,
           stripePaymentIntentId: session.payment_intent as string,
           amount: String((price.unit_amount || 0) / 100), // Convert cents to dollars
-          purpose: `credit_pack_${productName}`,
+          purpose: 'credit_pack',
           status: 'completed',
           metadata: {
             productName: product.name,
@@ -117,70 +105,17 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Redirect to studio after credit purchase
+      // Redirect to studio after credit purchase with success message
       await setSession(user[0]);
-      return NextResponse.redirect(new URL('/studio', request.url));
+      const redirectUrl = new URL('/studio', request.url);
+      redirectUrl.searchParams.set('success', 'true');
+      redirectUrl.searchParams.set('credits', String(creditsToAdd));
+      return NextResponse.redirect(redirectUrl);
       
     } else if (session.mode === 'subscription') {
-      // Subscription payment
-      console.log('Processing subscription payment');
-      
-      if (!session.customer || typeof session.customer === 'string') {
-        throw new Error('Invalid customer data from Stripe.');
-      }
-
-      const customerId = session.customer.id;
-      const subscriptionId =
-        typeof session.subscription === 'string'
-          ? session.subscription
-          : session.subscription?.id;
-
-      if (!subscriptionId) {
-        throw new Error('No subscription found for this session.');
-      }
-
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
-        expand: ['items.data.price.product'],
-      });
-
-      const plan = subscription.items.data[0]?.price;
-
-      if (!plan) {
-        throw new Error('No plan found for this subscription.');
-      }
-
-      const productId = (plan.product as Stripe.Product).id;
-
-      if (!productId) {
-        throw new Error('No product ID found for this subscription.');
-      }
-
-      const userTeam = await db
-        .select({
-          teamId: teamMembers.teamId,
-        })
-        .from(teamMembers)
-        .where(eq(teamMembers.userId, user[0].id))
-        .limit(1);
-
-      if (userTeam.length === 0) {
-        throw new Error('User is not associated with any team.');
-      }
-
-      await db
-        .update(teams)
-        .set({
-          stripeCustomerId: customerId,
-          stripeSubscriptionId: subscriptionId,
-          stripeProductId: productId,
-          planName: (plan.product as Stripe.Product).name,
-          subscriptionStatus: subscription.status,
-          updatedAt: new Date(),
-        })
-        .where(eq(teams.id, userTeam[0].teamId));
-
-      await setSession(user[0]);
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      // We don't support subscriptions anymore, redirect to pricing
+      console.log('Subscription mode not supported, redirecting to pricing');
+      return NextResponse.redirect(new URL('/pricing', request.url));
     } else {
       throw new Error(`Unsupported checkout mode: ${session.mode}`);
     }

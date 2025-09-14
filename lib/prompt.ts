@@ -1,8 +1,26 @@
 import type { TattooPromptParams } from '@/types/core'
 
 export function buildTattooPrompt(params: TattooPromptParams): string {
+	// Map technical body part names to natural language
+	const partNames: Record<string, string> = {
+		'upper_arm': 'upper arm',
+		'forearm': 'forearm',
+		'hand': 'hand',
+		'neck': 'neck',
+		'back': 'back',
+		'chest': 'chest',
+		'shoulder': 'shoulder',
+		'leg': 'leg',
+		'ankle': 'ankle',
+		'wrist': 'wrist',
+		'ear': 'ear',
+		'other': 'body part'
+	}
+
+	const bodyPart = partNames[params.part] || params.part
+
 	// Build natural language prompt like in Replicate UI examples
-	let prompt = `Apply the tattoo design from the second image onto the ${params.part} shown in the first image. `
+	let prompt = `Apply the tattoo design from the second image onto the ${bodyPart} shown in the first image. Keep the tattoo design exactly as it appears in the second image - do not modify or reinterpret the design. `
 	
 	// Add style instructions
 	if (params.variant === 'black_gray') {
@@ -37,7 +55,7 @@ export function buildTattooPrompt(params: TattooPromptParams): string {
 	}
 	
 	// Add realism instructions
-	prompt += 'Make the scene natural. The tattoo should look realistic on the skin, following the body\'s natural contours and lighting.'
+	prompt += 'Make the scene natural. The tattoo should look realistic on the skin, following the body\'s natural contours and lighting. Preserve all details and elements from the original tattoo design without alterations.'
 	
 	return prompt
 }

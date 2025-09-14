@@ -1,7 +1,8 @@
 // Core types for tattoo preview system
 
 export type BodyPart =
-	| 'arm'
+	| 'upper_arm'
+	| 'forearm'
 	| 'hand'
 	| 'ear'
 	| 'neck'

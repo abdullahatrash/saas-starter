@@ -19,7 +19,8 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const bodyParts: Array<{ value: BodyPart; label: string }> = [
-	{ value: 'arm', label: 'Arm' },
+	{ value: 'upper_arm', label: 'Upper Arm' },
+	{ value: 'forearm', label: 'Forearm' },
 	{ value: 'hand', label: 'Hand' },
 	{ value: 'neck', label: 'Neck' },
 	{ value: 'back', label: 'Back' },
@@ -40,7 +41,7 @@ const variants: Array<{ value: TattooVariant; label: string }> = [
 export default function StudioPage() {
 	const [bodyImageUrl, setBodyImageUrl] = useState<string | null>(null)
 	const [designImageUrl, setDesignImageUrl] = useState<string | null>(null)
-	const [selectedPart, setSelectedPart] = useState<BodyPart>('arm')
+	const [selectedPart, setSelectedPart] = useState<BodyPart>('forearm')
 	const [selectedVariant, setSelectedVariant] = useState<TattooVariant>('black_gray')
 	const [scale, setScale] = useState(100)
 	const [rotation, setRotation] = useState(0)
@@ -54,8 +55,10 @@ export default function StudioPage() {
 	const [promptBlending, setPromptBlending] = useState('natural')
 	const [promptDetails, setPromptDetails] = useState('')
 	const [isGenerating, setIsGenerating] = useState(false)
-	const [isUploading, setIsUploading] = useState(false)
-	const [uploadProgress, setUploadProgress] = useState(0)
+	const [isUploadingBody, setIsUploadingBody] = useState(false)
+	const [isUploadingDesign, setIsUploadingDesign] = useState(false)
+	const [bodyUploadProgress, setBodyUploadProgress] = useState(0)
+	const [designUploadProgress, setDesignUploadProgress] = useState(0)
 	const [previewResult, setPreviewResult] = useState<string | null>(null)
 	const [jobId, setJobId] = useState<number | null>(null)
 	const [credits, setCredits] = useState<number | null>(null)
@@ -152,27 +155,41 @@ export default function StudioPage() {
 				return
 			}
 
-			setIsUploading(true)
-			setUploadProgress(0)
+			// Set appropriate uploading state
+			if (type === 'body') {
+				setIsUploadingBody(true)
+				setBodyUploadProgress(0)
+			} else {
+				setIsUploadingDesign(true)
+				setDesignUploadProgress(0)
+			}
 
 			try {
 				// Show compression toast
 				const compressionToast = toast.loading(STUDIO_INFO_MESSAGES.COMPRESSING)
-				
+
 				// Compress image
 				const compressedFile = await compressImage(file, {
 					maxSizeMB: 2,
 					maxWidthOrHeight: 2048,
 					onProgress: (progress) => {
-						setUploadProgress(progress * 50) // First 50% for compression
+						if (type === 'body') {
+							setBodyUploadProgress(progress * 50) // First 50% for compression
+						} else {
+							setDesignUploadProgress(progress * 50)
+						}
 					},
 				})
 
 				toast.dismiss(compressionToast)
-				
+
 				// Upload compressed file
 				const uploadToast = toast.loading(STUDIO_INFO_MESSAGES.UPLOADING)
-				setUploadProgress(50)
+				if (type === 'body') {
+					setBodyUploadProgress(50)
+				} else {
+					setDesignUploadProgress(50)
+				}
 
 				const formData = new FormData()
 				formData.append('file', compressedFile)
@@ -182,7 +199,11 @@ export default function StudioPage() {
 					body: formData,
 				})
 
-				setUploadProgress(100)
+				if (type === 'body') {
+					setBodyUploadProgress(100)
+				} else {
+					setDesignUploadProgress(100)
+				}
 				toast.dismiss(uploadToast)
 
 				if (!response.ok) {
@@ -209,8 +230,13 @@ export default function StudioPage() {
 					removeDesignFile(designFiles[0].id)
 				}
 			} finally {
-				setIsUploading(false)
-				setUploadProgress(0)
+				if (type === 'body') {
+					setIsUploadingBody(false)
+					setBodyUploadProgress(0)
+				} else {
+					setIsUploadingDesign(false)
+					setDesignUploadProgress(0)
+				}
 			}
 		},
 		[bodyFiles, designFiles, removeBodyFile, removeDesignFile]
@@ -400,7 +426,7 @@ export default function StudioPage() {
 		}
 		
 		// Reset settings to defaults
-		setSelectedPart('arm')
+		setSelectedPart('forearm')
 		setSelectedVariant('black_gray')
 		setScale(100)
 		setRotation(0)
@@ -484,15 +510,17 @@ export default function StudioPage() {
 												alt='Body'
 												className='h-28 object-contain'
 											/>
-										) : isUploading && uploadProgress < 50 ? (
+										) : isUploadingBody ? (
 											<div className='flex flex-col items-center gap-2'>
 												<Loader2 className='h-8 w-8 animate-spin text-gray-400' />
-												<span className='text-sm text-gray-500'>Compressing...</span>
-												<Progress value={uploadProgress} className='w-32' />
+												<span className='text-sm text-gray-500'>
+													{bodyUploadProgress < 50 ? 'Compressing...' : 'Uploading...'}
+												</span>
+												<Progress value={bodyUploadProgress} className='w-32' />
 											</div>
 										) : (
 											<div className='flex flex-col items-center'>
-												<Button variant='outline' onClick={openBodyDialog} disabled={isUploading}>
+												<Button variant='outline' onClick={openBodyDialog} disabled={isUploadingBody || isUploadingDesign}>
 													Upload body photo
 												</Button>
 												<span className='mt-2 text-xs text-gray-500'>
@@ -533,15 +561,17 @@ export default function StudioPage() {
 												alt='Design'
 												className='h-28 object-contain'
 											/>
-										) : isUploading && uploadProgress >= 50 ? (
+										) : isUploadingDesign ? (
 											<div className='flex flex-col items-center gap-2'>
 												<Loader2 className='h-8 w-8 animate-spin text-gray-400' />
-												<span className='text-sm text-gray-500'>Uploading...</span>
-												<Progress value={uploadProgress} className='w-32' />
+												<span className='text-sm text-gray-500'>
+													{designUploadProgress < 50 ? 'Compressing...' : 'Uploading...'}
+												</span>
+												<Progress value={designUploadProgress} className='w-32' />
 											</div>
 										) : (
 											<div className='flex flex-col items-center'>
-												<Button variant='outline' onClick={openDesignDialog} disabled={isUploading}>
+												<Button variant='outline' onClick={openDesignDialog} disabled={isUploadingBody || isUploadingDesign}>
 													Upload tattoo design
 												</Button>
 												<span className='mt-2 text-xs text-gray-500'>
@@ -976,7 +1006,7 @@ export default function StudioPage() {
 							)}
 							<Button
 								onClick={generatePreview}
-								disabled={isGenerating || !bodyImageUrl || !designImageUrl || isUploading}
+								disabled={isGenerating || !bodyImageUrl || !designImageUrl || isUploadingBody || isUploadingDesign}
 								size='lg'
 								className='min-w-[180px]'
 							>
