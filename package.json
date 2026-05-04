@@ -38,7 +38,7 @@
     "lucide-react": "^0.511.0",
     "media-chrome": "^4.13.0",
     "motion": "^12.23.12",
-    "next": "15.4.0-canary.47",
+    "next": "15.4.8",
     "pg": "^8.16.3",
     "postcss": "^8.5.3",
     "postgres": "^3.4.5",
