@@ -4,11 +4,16 @@ import { previewJobs, bodyPhotos, designs, studios, teamMembers } from '@/lib/db
 import { getUser } from '@/lib/db/queries'
 import { consumeCredits, getUserCredits, refundCreditOnce } from '@/lib/entitlements'
 import { createPrediction } from '@/lib/replicate'
-import { buildTattooPrompt } from '@/lib/prompt'
+import { buildTattooPrompt, buildCompositePrompt } from '@/lib/prompt'
 import { eq, and } from 'drizzle-orm'
 import type { TattooPromptParams, BodyPart, TattooVariant } from '@/types/core'
 
 export const runtime = 'nodejs'
+
+// Cap on the Advanced custom prompt. Placement is carried by the composite
+// pixels now, so the free-text field is only for stylistic direction — a bound
+// keeps a pasted essay (or abuse) from reaching the model.
+const MAX_CUSTOM_PROMPT_LENGTH = 2000
 
 export async function POST(request: NextRequest) {
 	try {
@@ -21,6 +26,10 @@ export async function POST(request: NextRequest) {
 		const {
 			bodyImageUrl,
 			designImageUrl,
+			// The client-rendered composite (body photo with the design overlaid at
+			// the chosen transform). When present, it becomes the image the model
+			// works from and the prompt switches to the composite variant.
+			compositeImageUrl,
 			part,
 			variant = 'black_gray',
 			scale = 1.0,
@@ -33,6 +42,13 @@ export async function POST(request: NextRequest) {
 		// Validate required fields
 		if (!bodyImageUrl || !designImageUrl || !part) {
 			return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+		}
+
+		if (typeof customPrompt === 'string' && customPrompt.length > MAX_CUSTOM_PROMPT_LENGTH) {
+			return NextResponse.json(
+				{ error: `Custom prompt must be ${MAX_CUSTOM_PROMPT_LENGTH} characters or fewer` },
+				{ status: 400 }
+			)
 		}
 
 		// Hard paywall: no free credits are granted anywhere. The balance check
@@ -105,10 +121,17 @@ export async function POST(request: NextRequest) {
 				.returning()
 		}
 
-		// Build prompt - use custom if provided, otherwise generate
+		// Build prompt. A custom prompt always wins. Otherwise the composite flow
+		// uses the placement-aware variant (no scale/rotation/opacity prose — the
+		// pixels carry that), and the legacy flow keeps the slider-driven prose.
 		let prompt: string
 		if (customPrompt && customPrompt.trim()) {
 			prompt = customPrompt
+		} else if (compositeImageUrl) {
+			prompt = buildCompositePrompt({
+				part: part as BodyPart,
+				variant: variant as TattooVariant,
+			})
 		} else {
 			const promptParams: TattooPromptParams = {
 				part: part as BodyPart,
@@ -143,9 +166,10 @@ export async function POST(request: NextRequest) {
 		// Consume credit
 		await consumeCredits(user.id, 1)
 
-		// Images should already be absolute URLs from Vercel Blob
-		// But handle both cases for backward compatibility
-		const absoluteBodyUrl = bodyImageUrl
+		// Images should already be absolute URLs from Vercel Blob.
+		// When a composite was rendered client-side, it is what the model works
+		// from: image_input becomes [composite, design] instead of [body, design].
+		const absoluteBodyUrl = compositeImageUrl || bodyImageUrl
 		const absoluteDesignUrl = designImageUrl
 		
 		// Log URLs for debugging
