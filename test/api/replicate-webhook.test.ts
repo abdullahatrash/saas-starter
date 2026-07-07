@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { POST } from '@/app/api/webhooks/replicate/route'
 import { db } from '@/lib/db/drizzle'
@@ -9,6 +9,16 @@ import { signReplicateWebhook } from '../helpers/replicate-webhook'
 
 const SECRET = process.env.REPLICATE_WEBHOOK_SIGNING_SECRET!
 const PREDICTION_ID = 'pred_abc123'
+
+// The handler probes the result image for its dimensions over HTTP; keep that
+// traffic inside the test process.
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(Buffer.alloc(0))))
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 function deliver(body: string, headers: Record<string, string>) {
   const request = new Request('http://localhost/api/webhooks/replicate', {

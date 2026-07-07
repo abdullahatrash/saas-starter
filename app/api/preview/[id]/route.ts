@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db/drizzle'
-import { previewJobs, previewResults, userCredits } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { previewJobs, previewResults } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { getPrediction } from '@/lib/replicate'
 import { getUser } from '@/lib/db/queries'
+import { probeImageDimensions } from '@/lib/image-dimensions'
+import { refundCreditOnce } from '@/lib/entitlements'
 
 export const runtime = 'nodejs'
 
@@ -71,7 +73,8 @@ export async function GET(
 					})
 				}
 
-				// Update job status based on prediction status
+				// Update job status based on prediction status. nano-banana-2 returns
+				// a single URI string; older models returned arrays — tolerate both.
 				if (prediction.status === 'succeeded' && prediction.output) {
 					// Save result
 					const outputUrl = Array.isArray(prediction.output)
@@ -81,14 +84,20 @@ export async function GET(
 					if (outputUrl) {
 						// Check if result already exists
 						const existingResult = results.find(r => r.imageUrl === outputUrl)
-						
+
 						if (!existingResult) {
+							// Record the real output dimensions; null when the image can't
+							// be probed, never a fabricated default.
+							const dimensions = await probeImageDimensions(outputUrl)
+
 							const [result] = await db
 								.insert(previewResults)
 								.values({
 									jobId: job.id,
 									imageUrl: outputUrl,
 									thumbUrl: outputUrl, // Same for now
+									width: dimensions?.width ?? null,
+									height: dimensions?.height ?? null,
 								})
 								.returning()
 							results.push(result)
@@ -104,35 +113,18 @@ export async function GET(
 						job.status = 'succeeded'
 					}
 				} else if (prediction.status === 'failed' || prediction.status === 'canceled') {
-					// Refund credit if job failed and hasn't been refunded yet
+					// Refund the consumed credit — exactly once per job, even if the
+					// webhook path also observed (or later observes) this failure.
 					let creditsRefunded = false
-					// Check if job hasn't already been marked as failed (to avoid double refunds)
-					const isFirstFailure = job.status === 'running' || job.status === 'queued'
-					if (job.userId && isFirstFailure) {
-						try {
-							const [creditRecord] = await db
-								.select()
-								.from(userCredits)
-								.where(eq(userCredits.userId, job.userId))
-								.limit(1)
-
-							// Only refund if not in unlimited dev mode
-							if (creditRecord && creditRecord.credits < 999999) {
-								await db
-									.update(userCredits)
-									.set({
-										credits: sql`${userCredits.credits} + 1`,
-										updatedAt: new Date()
-									})
-									.where(eq(userCredits.userId, job.userId))
-								creditsRefunded = true
-								console.log(`Refunded 1 credit to user ${job.userId} for failed job ${job.id}`)
-							}
-						} catch (error) {
-							console.error('Error refunding credit:', error)
+					try {
+						creditsRefunded = await refundCreditOnce(job.id, job.userId)
+						if (creditsRefunded) {
+							console.log(`Refunded 1 credit to user ${job.userId} for failed job ${job.id}`)
 						}
+					} catch (error) {
+						console.error('Error refunding credit:', error)
 					}
-					
+
 					// Update job status
 					await db
 						.update(previewJobs)
@@ -158,7 +150,11 @@ export async function GET(
 							creditsRefunded: true,
 						})
 					}
-				} else if (prediction.status === 'processing' || prediction.status === 'starting') {
+				} else if (
+					prediction.status === 'processing' ||
+					prediction.status === 'starting' ||
+					prediction.status === 'queued'
+				) {
 					// Keep as running
 					job.status = 'running'
 				}

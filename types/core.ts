@@ -36,7 +36,7 @@ export interface VariantParams {
 
 export interface ReplicatePrediction {
 	id: string
-	status: 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled'
+	status: 'queued' | 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled'
 	output?: string | Array<string>
 	error?: string
 	logs?: string
