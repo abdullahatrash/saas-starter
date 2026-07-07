@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { use, useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { Home, LogOut, Palette, Coins, Crown } from "lucide-react";
+import { Home, LogOut, Palette, Coins, Crown, Images } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -125,6 +125,12 @@ function UserMenu() {
           <Link href="/studio" className="flex w-full items-center">
             <Palette className="mr-2 h-4 w-4" />
             <span>Tattoo Studio</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
+          <Link href="/previews" className="flex w-full items-center">
+            <Images className="mr-2 h-4 w-4" />
+            <span>My Previews</span>
           </Link>
         </DropdownMenuItem>
         <form action={handleSignOut} className="w-full">
