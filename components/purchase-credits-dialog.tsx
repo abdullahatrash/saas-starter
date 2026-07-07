@@ -55,7 +55,7 @@ export function PurchaseCreditsDialog({ open, onOpenChange }: PurchaseCreditsDia
                 </li>
               </ul>
               <form action={checkoutAction} className="mt-4 w-full">
-                <input type="hidden" name="priceId" value={pack.priceId} />
+                <input type="hidden" name="packId" value={pack.id} />
                 <Button
                   type="submit"
                   size="lg"

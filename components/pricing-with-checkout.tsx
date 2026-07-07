@@ -81,7 +81,7 @@ export default function PricingWithCheckout({ checkoutAction }: PricingWithCheck
                 <CardFooter className="pt-6">
                   {checkoutAction ? (
                     <form action={checkoutAction} className="w-full">
-                      <input type="hidden" name="priceId" value={pack.priceId} />
+                      <input type="hidden" name="packId" value={pack.id} />
                       <Button
                         type="submit"
                         size="lg"

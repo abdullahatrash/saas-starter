@@ -15,6 +15,13 @@ export async function createCheckoutSession({
   team: Team | null;
   priceId: string;
 }) {
+  // An empty price ID means a stale or malformed checkout link (e.g. a client
+  // bundle that could not resolve server-only env vars) — send the buyer to
+  // pricing instead of a Stripe 500.
+  if (!priceId) {
+    redirect('/pricing');
+  }
+
   const user = await getUser();
 
   if (!team || !user) {
