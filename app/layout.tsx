@@ -6,6 +6,7 @@ import { SWRConfig } from "swr";
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://tattoostry.com"),
   title: {
     default: "TattoosTry - Try Tattoos Before You Ink | AI Tattoo Preview",
     template: "%s | TattoosTry",
