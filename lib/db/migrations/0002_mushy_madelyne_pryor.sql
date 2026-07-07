@@ -1,0 +1,1 @@
+ALTER TABLE "preview_jobs" ADD COLUMN "credit_refunded_at" timestamp;

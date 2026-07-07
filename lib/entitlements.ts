@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/drizzle'
-import { userCredits, payments } from '@/lib/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { userCredits, payments, previewJobs } from '@/lib/db/schema'
+import { eq, and, isNull, sql } from 'drizzle-orm'
 
 // Get initial credits from environment or use default
 const getInitialCredits = () => {
@@ -126,6 +126,30 @@ export async function grantCreditPackPurchase(data: {
 
 		return true
 	})
+}
+
+// Refunds the credit consumed by a failed generation, exactly once per job.
+// Both failure observers (the Replicate webhook and the status-polling route)
+// call this; the atomic claim of credit_refunded_at (UPDATE ... WHERE ... IS
+// NULL) guarantees only one of them performs the refund.
+export async function refundCreditOnce(jobId: number, userId: number): Promise<boolean> {
+	// In unlimited dev mode no credit was consumed, so nothing is refunded.
+	if (isUnlimitedCreditsMode()) {
+		return false
+	}
+
+	const claimed = await db
+		.update(previewJobs)
+		.set({ creditRefundedAt: new Date() })
+		.where(and(eq(previewJobs.id, jobId), isNull(previewJobs.creditRefundedAt)))
+		.returning({ id: previewJobs.id })
+
+	if (claimed.length === 0) {
+		return false
+	}
+
+	await addCredits(userId, 1)
+	return true
 }
 
 export async function recordPayment(data: {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db/drizzle'
 import { previewJobs, bodyPhotos, designs, studios, teamMembers } from '@/lib/db/schema'
 import { getUser } from '@/lib/db/queries'
-import { consumeCredits, getUserCredits, addCredits } from '@/lib/entitlements'
+import { consumeCredits, getUserCredits, refundCreditOnce } from '@/lib/entitlements'
 import { createPrediction } from '@/lib/replicate'
 import { buildTattooPrompt } from '@/lib/prompt'
 import { eq, and } from 'drizzle-orm'
@@ -170,11 +170,11 @@ export async function POST(request: NextRequest) {
 				webhookUrl: webhookUrl || 'polling (no webhook)',
 			})
 
+			// nano-banana-2 has no seed input, so the stored seed is not sent.
 			const prediction = await createPrediction({
 				bodyImageUrl: absoluteBodyUrl,
 				designImageUrl: absoluteDesignUrl,
 				prompt,
-				seed: job.seed || undefined,
 				webhookUrl,
 			})
 
@@ -201,9 +201,10 @@ export async function POST(request: NextRequest) {
 				creditsRemaining: credits - 1,
 			})
 		} catch (error: any) {
-			// Refund credit on error
-			await addCredits(user.id, 1)
-			
+			// Refund the consumed credit through the same once-only guard used by
+			// the webhook and polling paths.
+			await refundCreditOnce(job.id, user.id)
+
 			await db
 				.update(previewJobs)
 				.set({ status: 'failed' })
