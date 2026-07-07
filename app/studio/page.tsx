@@ -455,6 +455,7 @@ export default function StudioPage() {
 				<p className='text-gray-600 mt-2'>
 					Upload a body photo and design to see how your tattoo will look
 				</p>
+				<a href='/previews' className='text-sm text-blue-600 hover:underline mt-1 inline-block'>My Previews →</a>
 				{credits !== null && (
 					<div className='flex items-center gap-2 mt-1'>
 						<p className='text-sm text-gray-500'>
