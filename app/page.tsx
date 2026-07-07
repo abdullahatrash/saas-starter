@@ -2,9 +2,7 @@ import { Separator } from "@/components/ui/separator";
 import HeroSection from "@/components/hero-section";
 import Features1 from "@/components/features-1";
 import DemoVideoPlayer from "@/components/demo-video-player";
-// import TattooGallery from '@/components/tattoo-gallery'
 import Features from "@/components/features-4";
-import WallOfLoveSection from "@/components/testimonials";
 import FAQsTwo from "@/components/faqs-2";
 import Pricing from "@/components/pricing";
 import PricingWithCheckout from "@/components/pricing-with-checkout";
@@ -192,28 +190,13 @@ export default async function LandingPage() {
         {/* First CTA Section */}
         <CTASection variant="primary" />
 
-        {/* Tattoo Gallery */}
-        {/* <section id="gallery">
-        <TattooGallery />
-      </section> */}
-
         {/* Features Grid */}
         <section className="bg-white">
           <Features />
         </section>
 
-        {/* Gallery Section */}
-        <section id="gallery" className="py-20 bg-yellow-50">
-          <div className="container mx-auto max-w-6xl px-4 text-center">
-            <h2 className="text-3xl font-bold mb-4">Gallery</h2>
-            <p className="text-muted-foreground">
-              Coming soon - See amazing tattoo previews created by our users
-            </p>
-          </div>
-        </section>
-
         {/* Pricing Section */}
-        <section id="pricing" className="bg-white">
+        <section id="pricing" className="bg-yellow-50">
           {user ? (
             <PricingWithCheckout checkoutAction={checkoutAction} />
           ) : (
@@ -221,13 +204,8 @@ export default async function LandingPage() {
           )}
         </section>
 
-        {/* Testimonials */}
-        <section className="bg-yellow-50">
-          <WallOfLoveSection />
-        </section>
-
         {/* FAQ Section */}
-        <section className="bg-white">
+        <section id="faq" className="bg-white">
           <FAQsTwo />
         </section>
 

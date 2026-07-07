@@ -27,7 +27,6 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const menuItems = [
   { name: "Features", href: "#features" },
   { name: "Pricing", href: "#pricing" },
-  { name: "Gallery", href: "#gallery" },
   { name: "Studio", href: "/studio" },
 ];
 
@@ -252,7 +251,7 @@ export default function HeroSection() {
                       ✨
                     </span>
                     <span className="leading-relaxed font-semibold">
-                      Photorealistic AI preview in 30-60 seconds
+                      Photorealistic AI preview in seconds
                     </span>
                   </p>
                   <p className="flex items-start">

@@ -12,7 +12,7 @@ export const faqItems = [
   {
     id: 'item-3',
     question: 'How long does it take to generate a preview?',
-    answer: "Most previews are ready in 30-60 seconds. Complex designs might take slightly longer. We use Google's advanced Nano-Banana AI model via Replicate for fast, high-quality results.",
+    answer: "Most previews are ready in seconds — complex designs can take a little longer. We use Google's latest Nano Banana 2 image model for fast, high-quality results.",
   },
   {
     id: 'item-4',
