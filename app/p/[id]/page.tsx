@@ -1,10 +1,12 @@
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db/drizzle'
 import { previewJobs, previewResults, bodyPhotos, designs } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Calendar, Palette, User } from 'lucide-react'
+import { Calendar, Palette } from 'lucide-react'
+import { LivePreview } from './live-preview'
 
 export default async function PreviewPage({ params }: { params: Promise<{ id: string }> }) {
 	const { id } = await params
@@ -53,33 +55,13 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
 						</p>
 					</div>
 
-					{/* Main Preview */}
-					{results.length > 0 ? (
-						<Card className='p-8 mb-8'>
-							<img
-								src={results[0].imageUrl}
-								alt='Tattoo Preview'
-								className='w-full h-auto rounded-lg shadow-lg'
-							/>
-						</Card>
-					) : jobData.status === 'running' ? (
-						<Card className='p-12 mb-8 text-center'>
-							<div className='animate-pulse'>
-								<div className='w-16 h-16 bg-gray-300 rounded-full mx-auto mb-4'></div>
-								<p className='text-gray-600'>Generating preview...</p>
-								<p className='text-sm text-gray-500 mt-2'>This usually takes 10-30 seconds</p>
-							</div>
-						</Card>
-					) : jobData.status === 'failed' ? (
-						<Card className='p-12 mb-8 text-center'>
-							<p className='text-red-600'>Preview generation failed</p>
-							<p className='text-sm text-gray-500 mt-2'>Please try again</p>
-						</Card>
-					) : (
-						<Card className='p-12 mb-8 text-center'>
-							<p className='text-gray-600'>Preview pending...</p>
-						</Card>
-					)}
+					{/* Main Preview — polls while the job is in flight and swaps in
+					    the result on completion without a manual refresh */}
+					<LivePreview
+						jobId={jobData.id}
+						initialStatus={jobData.status}
+						initialImageUrl={results[0]?.imageUrl ?? null}
+					/>
 
 					{/* Details */}
 					<div className='grid md:grid-cols-2 gap-6 mb-8'>
@@ -133,10 +115,6 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
 									</dd>
 								</div>
 								<div className='flex justify-between'>
-									<dt className='text-gray-600'>Status:</dt>
-									<dd className='font-medium capitalize'>{jobData.status}</dd>
-								</div>
-								<div className='flex justify-between'>
 									<dt className='text-gray-600'>Preview ID:</dt>
 									<dd className='font-medium'>#{jobData.id}</dd>
 								</div>
@@ -148,14 +126,11 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
 					<Card className='p-8 text-center bg-gradient-to-r from-purple-50 to-pink-50'>
 						<h3 className='text-xl font-semibold mb-2'>Love this design?</h3>
 						<p className='text-gray-600 mb-6'>
-							Book a consultation with our artists to make it a reality
+							See how any tattoo looks on your own skin in seconds
 						</p>
 						<div className='flex gap-4 justify-center'>
-							<Button size='lg'>
-								Book Consultation
-							</Button>
-							<Button variant='outline' size='lg'>
-								Create Your Own
+							<Button asChild size='lg'>
+								<Link href='/sign-up'>Create Your Own</Link>
 							</Button>
 						</div>
 					</Card>
