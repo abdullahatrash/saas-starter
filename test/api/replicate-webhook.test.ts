@@ -68,6 +68,26 @@ describe('POST /api/webhooks/replicate', () => {
     expect(await resultCount(job.id)).toBe(0)
   })
 
+  it('rejects a correctly signed payload whose timestamp is stale and writes nothing', async () => {
+    const user = await createUser()
+    const job = await createPreviewJob({
+      userId: user.id,
+      status: 'running',
+      replicatePredictionId: PREDICTION_ID,
+    })
+    const body = succeededPayload()
+    const staleTimestamp = String(Math.floor(Date.now() / 1000) - 10 * 60)
+
+    const response = await deliver(
+      body,
+      signReplicateWebhook({ id: 'msg_replayed', timestamp: staleTimestamp, body, secret: SECRET })
+    )
+
+    expect(response.status).toBe(401)
+    expect(await jobStatus(job.id)).toBe('running')
+    expect(await resultCount(job.id)).toBe(0)
+  })
+
   it('rejects a payload with missing signature headers and writes nothing', async () => {
     const user = await createUser()
     const job = await createPreviewJob({
