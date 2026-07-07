@@ -6,6 +6,7 @@ import {
   getUser,
   updateTeamSubscription
 } from '@/lib/db/queries';
+import { creditsForPriceId } from '@/lib/stripe-price-ids';
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-04-30.basil'
@@ -24,8 +25,11 @@ export async function createCheckoutSession({
     redirect(`/sign-up?redirect=checkout&priceId=${priceId}`);
   }
 
-  // Simplified - we only have one-time credit pack purchases now
-  const isSubscription = false;
+  // One-time credit-pack purchases only. The metadata here is the contract the
+  // webhook reads to grant credits: type identifies the purchase, and credits is
+  // the amount to grant (derived from the pack config so it can never drift from
+  // the price the buyer actually paid).
+  const credits = creditsForPriceId(priceId);
 
   const sessionConfig: Stripe.Checkout.SessionCreateParams = {
     payment_method_types: ['card'],
@@ -35,20 +39,20 @@ export async function createCheckoutSession({
         quantity: 1
       }
     ],
-    mode: isSubscription ? 'subscription' : 'payment',
+    mode: 'payment',
     success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.BASE_URL}/pricing`,
     customer: team.stripeCustomerId || undefined,
     client_reference_id: user.id.toString(),
     allow_promotion_codes: true,
     metadata: {
+      type: 'credit_pack',
       userId: user.id.toString(),
       teamId: team.id.toString(),
-      priceId: priceId
+      priceId: priceId,
+      credits: String(credits ?? '')
     }
   };
-
-  // No subscriptions - only one-time credit pack purchases
 
   const session = await stripe.checkout.sessions.create(sessionConfig);
 

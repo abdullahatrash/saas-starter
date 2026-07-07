@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/drizzle'
 import { userCredits, payments } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 
 // Get initial credits from environment or use default
 const getInitialCredits = () => {
@@ -81,13 +81,60 @@ export async function addCredits(userId: number, amount: number): Promise<void> 
 		})
 }
 
+// Grants a credit-pack purchase exactly once, keyed on the Stripe checkout
+// session ID. Returns true when this call performed the grant, false when the
+// session was already recorded (a replayed webhook). The payment insert and the
+// credit increment share one transaction so a replay can never grant twice.
+export async function grantCreditPackPurchase(data: {
+	userId: number
+	credits: number
+	stripeSessionId: string
+	stripePaymentIntentId?: string | null
+	amount: number
+	metadata?: any
+}): Promise<boolean> {
+	return db.transaction(async (tx) => {
+		const inserted = await tx
+			.insert(payments)
+			.values({
+				userId: data.userId,
+				stripeSessionId: data.stripeSessionId,
+				stripePaymentIntentId: data.stripePaymentIntentId ?? null,
+				amount: data.amount.toString(),
+				purpose: 'credit_pack',
+				status: 'succeeded',
+				metadata: data.metadata,
+			})
+			.onConflictDoNothing({ target: payments.stripeSessionId })
+			.returning({ id: payments.id })
+
+		// A conflict means this session was already processed — grant nothing.
+		if (inserted.length === 0) {
+			return false
+		}
+
+		await tx
+			.insert(userCredits)
+			.values({ userId: data.userId, credits: data.credits })
+			.onConflictDoUpdate({
+				target: userCredits.userId,
+				set: {
+					credits: sql`${userCredits.credits} + ${data.credits}`,
+					updatedAt: new Date(),
+				},
+			})
+
+		return true
+	})
+}
+
 export async function recordPayment(data: {
 	userId: number
 	teamId?: number
 	stripeSessionId?: string
 	stripePaymentIntentId?: string
 	amount: number
-	purpose: 'export' | 'credit-pack' | 'subscription'
+	purpose: 'export' | 'credit_pack' | 'subscription'
 	status: 'pending' | 'succeeded' | 'failed'
 	metadata?: any
 }): Promise<void> {

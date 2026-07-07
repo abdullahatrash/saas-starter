@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Check, Sparkles } from 'lucide-react'
-import { CREDIT_PACK } from '@/lib/stripe-price-ids'
+import { CREDIT_PACKS } from '@/lib/stripe-price-ids'
 import { checkoutAction } from '@/lib/payments/actions'
 
 interface PurchaseCreditsDialogProps {
@@ -18,9 +18,8 @@ interface PurchaseCreditsDialogProps {
 }
 
 // Opened at the moment of highest intent: the user clicked Generate with zero
-// credits. Submitting the form hands off to the existing Stripe checkout action.
-// Issue #4 replaces this single pack with two packs (Entry / Standard) driven by
-// the pricing config — extend the pack list rendered here rather than the wiring.
+// credits. Both packs are rendered from the config module; submitting a pack's
+// form hands off to the Stripe checkout action.
 export function PurchaseCreditsDialog({ open, onOpenChange }: PurchaseCreditsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -35,33 +34,40 @@ export function PurchaseCreditsDialog({ open, onOpenChange }: PurchaseCreditsDia
           </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-xl border p-4">
-          <div className="flex items-baseline justify-between">
-            <span className="font-semibold">{CREDIT_PACK.name}</span>
-            <span className="text-2xl font-bold">${CREDIT_PACK.price}</span>
-          </div>
-          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 shrink-0 text-green-500" />
-              {CREDIT_PACK.credits} AI-powered tattoo previews
-            </li>
-            <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 shrink-0 text-green-500" />
-              Credits never expire
-            </li>
-          </ul>
+        <div className="grid gap-3">
+          {CREDIT_PACKS.map((pack) => (
+            <div
+              key={pack.id}
+              className={`rounded-xl border p-4 ${pack.featured ? 'border-purple-400 ring-1 ring-purple-200' : ''}`}
+            >
+              <div className="flex items-baseline justify-between">
+                <span className="font-semibold">{pack.name}</span>
+                <span className="text-2xl font-bold">${pack.price}</span>
+              </div>
+              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-green-500" />
+                  {pack.credits} AI-powered tattoo previews
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-green-500" />
+                  Credits never expire
+                </li>
+              </ul>
+              <form action={checkoutAction} className="mt-4 w-full">
+                <input type="hidden" name="priceId" value={pack.priceId} />
+                <Button
+                  type="submit"
+                  size="lg"
+                  variant={pack.featured ? 'default' : 'outline'}
+                  className={`w-full ${pack.featured ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600' : ''}`}
+                >
+                  Buy {pack.credits} credits
+                </Button>
+              </form>
+            </div>
+          ))}
         </div>
-
-        <form action={checkoutAction} className="w-full">
-          <input type="hidden" name="priceId" value={CREDIT_PACK.priceId} />
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
-          >
-            Buy credits
-          </Button>
-        </form>
       </DialogContent>
     </Dialog>
   )

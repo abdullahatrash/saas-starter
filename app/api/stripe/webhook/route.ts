@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { handleSubscriptionChange, stripe } from '@/lib/payments/stripe';
 import { NextRequest, NextResponse } from 'next/server';
-import { addCredits, updatePaymentStatus } from '@/lib/entitlements';
+import { grantCreditPackPurchase } from '@/lib/entitlements';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
@@ -23,46 +23,42 @@ export async function POST(request: NextRequest) {
 
   switch (event.type) {
     case 'customer.subscription.updated':
-    case 'customer.subscription.deleted':
+    case 'customer.subscription.deleted': {
       const subscription = event.data.object as Stripe.Subscription;
       await handleSubscriptionChange(subscription);
       break;
-    
-    case 'checkout.session.completed':
+    }
+
+    case 'checkout.session.completed': {
+      // The webhook is the single source of truth for credit granting: it runs
+      // even if the buyer closes the tab before the success redirect. Granting
+      // is idempotent on the session ID, so Stripe replays add nothing twice.
       const session = event.data.object as Stripe.Checkout.Session;
-      
-      // Handle credit pack purchases
+
       if (session.metadata?.type === 'credit_pack') {
-        const credits = parseInt(session.metadata.credits || '0');
-        const userId = parseInt(session.metadata.userId || '0');
-        
+        const credits = parseInt(session.metadata.credits || '0', 10);
+        const userId = parseInt(session.metadata.userId || '0', 10);
+
         if (credits > 0 && userId > 0) {
-          // Update payment status
-          await updatePaymentStatus(session.id, 'succeeded');
-          
-          // Add credits to user
-          await addCredits(userId, credits);
-          
-          console.log(`Added ${credits} credits to user ${userId}`);
+          const granted = await grantCreditPackPurchase({
+            userId,
+            credits,
+            stripeSessionId: session.id,
+            stripePaymentIntentId: (session.payment_intent as string) ?? null,
+            amount: (session.amount_total ?? 0) / 100,
+            metadata: { credits, priceId: session.metadata.priceId },
+          });
+
+          if (granted) {
+            console.log(`Granted ${credits} credits to user ${userId} (session ${session.id})`);
+          } else {
+            console.log(`Ignored replayed checkout session ${session.id}`);
+          }
         }
       }
       break;
-      
-    case 'payment_intent.succeeded':
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      
-      // Handle one-time credit purchases
-      if (paymentIntent.metadata?.type === 'credit_pack') {
-        const credits = parseInt(paymentIntent.metadata.credits || '0');
-        const userId = parseInt(paymentIntent.metadata.userId || '0');
-        
-        if (credits > 0 && userId > 0) {
-          await addCredits(userId, credits);
-          console.log(`Added ${credits} credits to user ${userId} via payment intent`);
-        }
-      }
-      break;
-      
+    }
+
     default:
       console.log(`Unhandled event type ${event.type}`);
   }

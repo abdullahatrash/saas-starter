@@ -18,6 +18,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PurchaseCreditsDialog } from '@/components/purchase-credits-dialog'
+import { PurchaseSuccessPoller } from '@/components/purchase-success-poller'
 
 const bodyParts: Array<{ value: BodyPart; label: string }> = [
 	{ value: 'upper_arm', label: 'Upper Arm' },
@@ -447,6 +448,7 @@ export default function StudioPage() {
 	return (
 		<div className='container mx-auto py-8 px-4 pb-24'>
 			<Toaster position="top-center" richColors />
+			<PurchaseSuccessPoller onConfirmed={setCredits} />
 			<PurchaseCreditsDialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog} />
 
 			<div className='mb-8'>

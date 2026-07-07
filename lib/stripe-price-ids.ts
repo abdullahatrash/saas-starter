@@ -1,49 +1,60 @@
 /**
- * Stripe Price IDs Configuration - Simplified
- * Single credit pack option: $4.99 for 10 credits
+ * Credit-pack configuration — the single source of truth for the two one-time
+ * packs offered at launch. Price IDs come from the environment (never hardcoded)
+ * so test and live Stripe products can differ per deployment; credits-per-pack
+ * lives here keyed by price ID and is what the webhook grants.
  */
 
-// Test mode price ID
-const TEST_PRICE_ID = 'price_1S26Ua3FRtYXutpDgJHs2kXU'; // $4.99 - 10 credits
-const TEST_PRODUCT_ID = 'prod_Sy2ZTce3mmuqBt';
-
-// Production price ID
-const PRODUCTION_PRICE_ID = 'price_1S25HRKKwdMMZS6nnHtl8Jw7'; // $4.99 - 10 credits
-const PRODUCTION_PRODUCT_ID = 'prod_Sy2ZTce3mmuqBt';
-
-// Determine Stripe mode based on environment
+// Determine Stripe mode the same way the rest of the app does.
 const stripeMode = process.env.STRIPE_MODE || (process.env.NODE_ENV === 'production' ? 'live' : 'test');
 const isTestMode = stripeMode === 'test';
 
-// Export the single price and product ID based on environment
-export const STRIPE_PRICE_ID = isTestMode ? TEST_PRICE_ID : PRODUCTION_PRICE_ID;
-export const STRIPE_PRODUCT_ID = isTestMode ? TEST_PRODUCT_ID : PRODUCTION_PRODUCT_ID;
-
-// Export the mode for use in other parts of the app
 export const STRIPE_MODE = isTestMode ? 'test' : 'live';
 
-// Single credit pack configuration
-export const CREDIT_PACK = {
-  name: '10 Credits Pack',
-  price: 4.99,
-  credits: 10,
-  priceId: STRIPE_PRICE_ID,
-  productId: STRIPE_PRODUCT_ID,
-  description: 'Perfect for trying out tattoo designs'
-};
-
-// Log configuration in non-production environments
-if (process.env.NODE_ENV !== 'production') {
-  console.log(`🔧 Stripe configuration:`);
-  console.log(`   Mode: ${STRIPE_MODE}`);
-  console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
-  console.log(`   STRIPE_MODE env: ${process.env.STRIPE_MODE || 'not set (using NODE_ENV)'}`);
+// Resolve a price ID from the environment, preferring a mode-suffixed variable
+// (e.g. STRIPE_PRICE_ENTRY_TEST / STRIPE_PRICE_ENTRY_LIVE) and falling back to
+// the un-suffixed base. Returns '' when unset so a missing live ID surfaces at
+// checkout rather than silently using a test price.
+function resolvePriceId(base: string): string {
+  const suffix = isTestMode ? 'TEST' : 'LIVE';
+  return process.env[`${base}_${suffix}`] ?? process.env[base] ?? '';
 }
 
-// Simplified helper - just returns the single price ID
-export function getPriceId(): string {
-  return STRIPE_PRICE_ID;
+export interface CreditPack {
+  id: 'entry' | 'standard';
+  name: string;
+  price: number;
+  credits: number;
+  priceId: string;
+  description: string;
+  featured?: boolean;
 }
 
-// Credit amount for the single pack
-export const CREDIT_AMOUNT = 10;
+export const CREDIT_PACKS: CreditPack[] = [
+  {
+    id: 'entry',
+    name: 'Entry Pack',
+    price: 2.99,
+    credits: 5,
+    priceId: resolvePriceId('STRIPE_PRICE_ENTRY'),
+    description: 'A low-risk way to try your first previews.',
+  },
+  {
+    id: 'standard',
+    name: 'Standard Pack',
+    price: 6.99,
+    credits: 20,
+    priceId: resolvePriceId('STRIPE_PRICE_STANDARD'),
+    description: 'Best value — the most previews per dollar.',
+    featured: true,
+  },
+];
+
+export function packForPriceId(priceId: string): CreditPack | undefined {
+  return CREDIT_PACKS.find((pack) => pack.priceId === priceId);
+}
+
+// Credits granted for a given price ID, or null when the ID is not a known pack.
+export function creditsForPriceId(priceId: string): number | null {
+  return packForPriceId(priceId)?.credits ?? null;
+}
