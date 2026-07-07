@@ -75,32 +75,32 @@ export default async function LandingPage() {
           <div className="container mx-auto max-w-6xl px-4">
             <div className="flex flex-wrap items-center justify-center gap-8 text-center">
               <div>
-                <p className="text-2xl font-bold">10,000+</p>
-                <p className="text-sm text-muted-foreground">Happy Customers</p>
+                <p className="text-2xl font-bold">Photorealistic</p>
+                <p className="text-sm text-muted-foreground">AI Previews</p>
               </div>
               <Separator
                 orientation="vertical"
                 className="h-8 hidden sm:block"
               />
               <div>
-                <p className="text-2xl font-bold">500+</p>
-                <p className="text-sm text-muted-foreground">Tattoo Artists</p>
+                <p className="text-2xl font-bold">9</p>
+                <p className="text-sm text-muted-foreground">Body Placements</p>
               </div>
               <Separator
                 orientation="vertical"
                 className="h-8 hidden sm:block"
               />
               <div>
-                <p className="text-2xl font-bold">4.9/5</p>
-                <p className="text-sm text-muted-foreground">Star Rating</p>
+                <p className="text-2xl font-bold">4</p>
+                <p className="text-sm text-muted-foreground">Tattoo Styles</p>
               </div>
               <Separator
                 orientation="vertical"
                 className="h-8 hidden sm:block"
               />
               <div>
-                <p className="text-2xl font-bold">30-60s</p>
-                <p className="text-sm text-muted-foreground">Generation Time</p>
+                <p className="text-2xl font-bold">Seconds</p>
+                <p className="text-sm text-muted-foreground">Not Sessions</p>
               </div>
             </div>
           </div>

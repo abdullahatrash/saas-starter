@@ -30,7 +30,7 @@ export default function CTASection({ variant = 'primary' }: CTASectionProps) {
           <p className="text-xl mb-8">
             {user
               ? "Continue exploring with our AI-powered tattoo preview studio"
-              : "Join 10,000+ happy users and 500+ tattoo artists. Preview packs from $2.99 — credits refunded if generation fails."}
+              : "See it on your own skin before you commit. Preview packs from $2.99 — credits refunded if generation fails."}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href={user ? "/studio" : "/sign-up"}>
@@ -73,7 +73,7 @@ export default function CTASection({ variant = 'primary' }: CTASectionProps) {
         <p className="text-xl mb-8">
           {user
             ? "Use our AI-powered studio to preview any tattoo design on your body"
-            : "Join 10,000+ happy users and 500+ tattoo artists. Preview packs from $2.99 — credits refunded if generation fails."}
+            : "See it on your own skin before you commit. Preview packs from $2.99 — credits refunded if generation fails."}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link href={user ? "/studio" : "/sign-up"}>

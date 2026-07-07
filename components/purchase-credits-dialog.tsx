@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Check, Sparkles } from 'lucide-react'
+import { track } from '@vercel/analytics'
 import { CREDIT_PACKS } from '@/lib/stripe-price-ids'
 import { checkoutAction } from '@/lib/payments/actions'
 
@@ -54,7 +55,11 @@ export function PurchaseCreditsDialog({ open, onOpenChange }: PurchaseCreditsDia
                   Credits never expire
                 </li>
               </ul>
-              <form action={checkoutAction} className="mt-4 w-full">
+              <form
+                action={checkoutAction}
+                onSubmit={() => track('checkout_started', { pack: pack.id })}
+                className="mt-4 w-full"
+              >
                 <input type="hidden" name="packId" value={pack.id} />
                 <Button
                   type="submit"

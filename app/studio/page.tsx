@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Loader2, Download, Share2, RotateCw, ZoomIn, Eye, AlertCircle, RefreshCw } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
+import { track } from '@vercel/analytics'
 import type { BodyPart, TattooVariant } from '@/types/core'
 import { PlacementEditor } from '@/components/placement-editor'
 import { renderComposite, DEFAULT_TRANSFORM, type PlacementTransform } from '@/lib/composite'
@@ -323,6 +324,7 @@ export default function StudioPage() {
 			toast.error(STUDIO_ERROR_MESSAGES.MISSING_IMAGES)
 			return
 		}
+		track('generate_clicked')
 
 		// Render the placement client-side and upload it. The composite (body photo
 		// with the design overlaid at the chosen transform) is what the model works
@@ -379,6 +381,7 @@ export default function StudioPage() {
 						toast.error(data.error)
 					} else {
 						// The paywall: open the purchase flow at the moment of intent.
+						track('paywall_shown')
 						setShowPurchaseDialog(true)
 					}
 				} else if (response.status === 400 && data.error?.includes('localhost')) {

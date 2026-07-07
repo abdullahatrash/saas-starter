@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
+import { track } from '@vercel/analytics'
 
 interface PurchaseSuccessPollerProps {
   // Called with the confirmed balance once the webhook has granted, so the
@@ -43,6 +44,7 @@ export function PurchaseSuccessPoller({ onConfirmed }: PurchaseSuccessPollerProp
     const toastId = toast.loading('Confirming your purchase…')
 
     const confirmed = (credits: number) => {
+      track('purchase_confirmed')
       onConfirmed?.(credits)
       toast.success(`Purchase confirmed! You now have ${credits} credits.`, {
         id: toastId,
