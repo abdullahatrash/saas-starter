@@ -32,7 +32,7 @@ export const faqItems = [
   {
     id: 'item-7',
     question: 'What are credits?',
-    answer: 'Each preview generation uses 1 credit. New users get 3 free credits to try the service. If the AI fails to generate your preview, your credit is automatically refunded.',
+    answer: 'Each preview generation uses 1 credit. Credit packs start at $2.99 for 5 previews. If the AI fails to generate your preview, your credit is automatically refunded.',
   },
   {
     id: 'item-8',

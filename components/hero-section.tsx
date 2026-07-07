@@ -303,10 +303,10 @@ export default function HeroSection() {
                         ) : (
                           <>
                             <span className="block sm:hidden">
-                              Try 3 Free →
+                              Try It Now →
                             </span>
                             <span className="hidden sm:block">
-                              Try Your First Tattoo - 3 Free Previews →
+                              Try Your First Tattoo Now →
                             </span>
                           </>
                         )}
@@ -316,7 +316,7 @@ export default function HeroSection() {
 
                   {!user && (
                     <p className="mt-4 text-sm text-gray-400 text-center lg:text-left">
-                      No credit card required • 3 free previews
+                      Free to sign up • Preview packs from $2.99
                     </p>
                   )}
                   {user && (

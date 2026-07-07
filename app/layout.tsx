@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: "%s | TattoosTry",
   },
   description:
-    "Try tattoos on your skin instantly with AI. Upload a photo and design, get photorealistic previews in seconds. Perfect for tattoo artists and clients. Start with 3 free previews!",
+    "Try tattoos on your skin instantly with AI. Upload a photo and design, get photorealistic previews in seconds. Perfect for tattoo artists and clients. Preview packs from $2.99.",
   keywords: [
     "tattoos try",
     "try tattoos online",

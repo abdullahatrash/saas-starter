@@ -30,7 +30,7 @@ export default function CTASection({ variant = 'primary' }: CTASectionProps) {
           <p className="text-xl mb-8">
             {user
               ? "Continue exploring with our AI-powered tattoo preview studio"
-              : "Join 10,000+ happy users and 500+ tattoo artists. Risk-free with 3 free previews."}
+              : "Join 10,000+ happy users and 500+ tattoo artists. Preview packs from $2.99 — credits refunded if generation fails."}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href={user ? "/studio" : "/sign-up"}>
@@ -38,7 +38,7 @@ export default function CTASection({ variant = 'primary' }: CTASectionProps) {
                 size="lg"
                 className="bg-black text-yellow-400 hover:bg-gray-900 min-w-[200px]"
               >
-                {user ? "Go to Studio" : "Try It Free Now"}
+                {user ? "Go to Studio" : "Try It Now"}
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
@@ -73,7 +73,7 @@ export default function CTASection({ variant = 'primary' }: CTASectionProps) {
         <p className="text-xl mb-8">
           {user
             ? "Use our AI-powered studio to preview any tattoo design on your body"
-            : "Join 10,000+ happy users and 500+ tattoo artists. Risk-free with 3 free previews."}
+            : "Join 10,000+ happy users and 500+ tattoo artists. Preview packs from $2.99 — credits refunded if generation fails."}
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link href={user ? "/studio" : "/sign-up"}>
@@ -81,7 +81,7 @@ export default function CTASection({ variant = 'primary' }: CTASectionProps) {
               size="lg"
               className="bg-black text-yellow-400 hover:bg-gray-900 min-w-[200px]"
             >
-              {user ? "Open Studio" : "Try It Free Now"}
+              {user ? "Open Studio" : "Try It Now"}
               <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
