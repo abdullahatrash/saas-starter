@@ -17,6 +17,7 @@ import { ImageZoom } from '@/components/ui/kibo-ui/image-zoom'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PurchaseCreditsDialog } from '@/components/purchase-credits-dialog'
 
 const bodyParts: Array<{ value: BodyPart; label: string }> = [
 	{ value: 'upper_arm', label: 'Upper Arm' },
@@ -64,6 +65,7 @@ export default function StudioPage() {
 	const [credits, setCredits] = useState<number | null>(null)
 	const [generationProgress, setGenerationProgress] = useState(0)
 	const [recentPreviews, setRecentPreviews] = useState<Array<{ id: number; url: string; createdAt: Date }>>([])
+	const [showPurchaseDialog, setShowPurchaseDialog] = useState(false)
 
 	// File upload hooks for body and design images
 	const [
@@ -291,14 +293,11 @@ export default function StudioPage() {
 				
 				if (response.status === 402) {
 					if (data.error?.includes('Replicate')) {
+						// Replicate-side billing failure, not the user's credit balance.
 						toast.error(data.error)
 					} else {
-						toast.error(
-							<div className="flex flex-col gap-1">
-								<span>{STUDIO_ERROR_MESSAGES.CREDITS_INSUFFICIENT}</span>
-								<span className="text-xs">You have {data.credits} credits remaining</span>
-							</div>
-						)
+						// The paywall: open the purchase flow at the moment of intent.
+						setShowPurchaseDialog(true)
 					}
 				} else if (response.status === 400 && data.error?.includes('localhost')) {
 					toast.error(STUDIO_ERROR_MESSAGES.LOCALHOST_ERROR)
@@ -448,7 +447,8 @@ export default function StudioPage() {
 	return (
 		<div className='container mx-auto py-8 px-4 pb-24'>
 			<Toaster position="top-center" richColors />
-			
+			<PurchaseCreditsDialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog} />
+
 			<div className='mb-8'>
 				<h1 className='text-3xl font-bold'>Tattoo Preview Studio</h1>
 				<p className='text-gray-600 mt-2'>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db/drizzle'
 import { previewJobs, bodyPhotos, designs, studios, teamMembers } from '@/lib/db/schema'
 import { getUser } from '@/lib/db/queries'
-import { consumeCredits, getUserCredits, initializeUserCredits, addCredits } from '@/lib/entitlements'
+import { consumeCredits, getUserCredits, addCredits } from '@/lib/entitlements'
 import { createPrediction } from '@/lib/replicate'
 import { buildTattooPrompt } from '@/lib/prompt'
 import { eq, and } from 'drizzle-orm'
@@ -35,10 +35,9 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
 		}
 
-		// Initialize credits if new user
-		await initializeUserCredits(user.id)
-
-		// Check credits
+		// Hard paywall: no free credits are granted anywhere. The balance check
+		// below is the sole enforcement point; a zero balance never mutates a
+		// credit row and never reaches Replicate.
 		const credits = await getUserCredits(user.id)
 		if (credits < 1) {
 			return NextResponse.json({ error: 'Insufficient credits', credits }, { status: 402 })
