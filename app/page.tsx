@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/shadcn-io/comparison";
 import { getUser } from "@/lib/db/queries";
 import { checkoutAction } from "@/lib/payments/actions";
+import { faqItems } from "@/lib/faq-data";
 
 // Structured data for SEO
 const structuredData = {
@@ -26,18 +27,27 @@ const structuredData = {
   applicationCategory: "DesignApplication",
   url: "https://tattoostry.com",
   offers: {
-    "@type": "Offer",
-    price: "0",
+    "@type": "AggregateOffer",
+    lowPrice: "2.99",
+    highPrice: "6.99",
     priceCurrency: "USD",
     availability: "https://schema.org/InStock",
   },
-  aggregateRating: {
-    "@type": "AggregateRating",
-    ratingValue: "4.9",
-    ratingCount: "500",
-  },
   description:
     "Try tattoos on your skin instantly with AI tattoo preview technology",
+};
+
+const faqStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqItems.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.answer,
+    },
+  })),
 };
 
 export default async function LandingPage() {
@@ -48,6 +58,10 @@ export default async function LandingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
       />
       <main className="min-h-screen">
         {/* Hero Section */}

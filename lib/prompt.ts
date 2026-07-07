@@ -1,22 +1,52 @@
-import type { TattooPromptParams } from '@/types/core'
+import type { BodyPart, TattooPromptParams, TattooVariant } from '@/types/core'
+
+// Map technical body part names to natural language.
+const partNames: Record<string, string> = {
+	'upper_arm': 'upper arm',
+	'forearm': 'forearm',
+	'hand': 'hand',
+	'neck': 'neck',
+	'back': 'back',
+	'chest': 'chest',
+	'shoulder': 'shoulder',
+	'leg': 'leg',
+	'ankle': 'ankle',
+	'wrist': 'wrist',
+	'ear': 'ear',
+	'other': 'body part'
+}
+
+function styleClause(variant: TattooVariant): string {
+	if (variant === 'black_gray') return 'Render it as a black and grey tattoo with no color. '
+	if (variant === 'fine_line') return 'Render it as a fine line tattoo with delicate strokes. '
+	if (variant === 'watercolor') return 'Render it as a watercolor style tattoo with soft edges and color diffusion. '
+	return 'Render it as a full color realistic tattoo. '
+}
+
+// Prompt used when the client sends a composite — the body photo with the design
+// already overlaid at the user's chosen position, size, rotation, and opacity.
+// The placement is carried by the pixels, so this prompt must NOT restate scale,
+// rotation, or opacity as prose; it only asks the model to turn the rough
+// overlay into a believable tattoo where it already sits.
+export function buildCompositePrompt(params: { part: BodyPart; variant: TattooVariant }): string {
+	const bodyPart = partNames[params.part] || params.part
+
+	let prompt =
+		`The first image is a photo of a ${bodyPart} with a tattoo design roughly overlaid to show its intended placement, size, and angle. ` +
+		`The second image is the clean tattoo design for reference. ` +
+		`Turn the overlaid design into a realistic tattoo on the skin, keeping it in exactly the same position, size, and orientation as shown in the first image — do not move, resize, straighten, or reinterpret it. `
+
+	prompt += styleClause(params.variant)
+
+	prompt +=
+		`Integrate it into the skin so it looks like real ink: follow the body's natural contours so the design wraps over the surface, ` +
+		`match the photo's lighting, shadows, and skin texture, and blend the edges naturally. ` +
+		`Preserve every detail and element of the design from the second image without alterations.`
+
+	return prompt
+}
 
 export function buildTattooPrompt(params: TattooPromptParams): string {
-	// Map technical body part names to natural language
-	const partNames: Record<string, string> = {
-		'upper_arm': 'upper arm',
-		'forearm': 'forearm',
-		'hand': 'hand',
-		'neck': 'neck',
-		'back': 'back',
-		'chest': 'chest',
-		'shoulder': 'shoulder',
-		'leg': 'leg',
-		'ankle': 'ankle',
-		'wrist': 'wrist',
-		'ear': 'ear',
-		'other': 'body part'
-	}
-
 	const bodyPart = partNames[params.part] || params.part
 
 	// Build natural language prompt like in Replicate UI examples

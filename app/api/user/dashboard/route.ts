@@ -33,6 +33,7 @@ export async function GET() {
         amount: payments.amount,
         purpose: payments.purpose,
         status: payments.status,
+        stripeSessionId: payments.stripeSessionId,
         createdAt: payments.createdAt,
         metadata: payments.metadata,
       })

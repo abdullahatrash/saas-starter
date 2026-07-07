@@ -29,37 +29,30 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: 'File too large' }, { status: 400 })
 		}
 
+		// Replicate can only fetch publicly hosted images, so Vercel Blob is the
+		// only supported upload target. Without a token there is no usable URL to
+		// return, so fail loudly rather than hand back a URL that points nowhere.
+		if (!process.env.BLOB_READ_WRITE_TOKEN) {
+			console.error('Upload failed: BLOB_READ_WRITE_TOKEN is not configured')
+			return NextResponse.json(
+				{ error: 'Image storage is not configured' },
+				{ status: 500 }
+			)
+		}
+
 		const timestamp = Date.now()
 		const fileName = `${user.id}-${timestamp}-${file.name}`
 		const pathname = `tattoo-previews/${fileName}`
 
-		// Use Vercel Blob if token is available
-		if (process.env.BLOB_READ_WRITE_TOKEN) {
-			const blob = await put(pathname, file, {
-				access: 'public',
-				contentType: file.type || 'image/jpeg', // Specify the content type
-			})
-			
-			console.log('File uploaded to Vercel Blob:', blob.url, 'Type:', file.type)
-			
-			return NextResponse.json({
-				url: blob.url,
-				pathname: blob.pathname,
-			})
-		} else {
-			// Fallback to local storage
-			const uploadDir = '/uploads'
-			const localFileName = `${user.id}-${timestamp}-${file.name}`
-			
-			// For local development without Blob, just return a local URL
-			// Note: This won't work with Replicate API
-			console.warn('No BLOB_READ_WRITE_TOKEN - using local URLs (won\'t work with Replicate)')
-			
-			return NextResponse.json({
-				url: `${uploadDir}/${localFileName}`,
-				pathname: localFileName,
-			})
-		}
+		const blob = await put(pathname, file, {
+			access: 'public',
+			contentType: file.type || 'image/jpeg',
+		})
+
+		return NextResponse.json({
+			url: blob.url,
+			pathname: blob.pathname,
+		})
 	} catch (error) {
 		console.error('Upload error:', error)
 		return NextResponse.json({ error: 'Upload failed' }, { status: 500 })

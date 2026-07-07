@@ -1,12 +1,6 @@
 import { db } from '@/lib/db/drizzle'
-import { userCredits, payments } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
-
-// Get initial credits from environment or use default
-const getInitialCredits = () => {
-	const fromEnv = process.env.INITIAL_USER_CREDITS
-	return fromEnv ? parseInt(fromEnv) : 3
-}
+import { userCredits, payments, previewJobs } from '@/lib/db/schema'
+import { eq, and, isNull, sql } from 'drizzle-orm'
 
 // Check if unlimited credits in dev mode
 const isUnlimitedCreditsMode = () => {
@@ -28,9 +22,9 @@ export async function getUserCredits(userId: number): Promise<number> {
 	return result[0]?.credits || 0
 }
 
-export async function initializeUserCredits(userId: number, initialCredits?: number): Promise<void> {
-	const credits = initialCredits ?? getInitialCredits()
-	
+export async function initializeUserCredits(userId: number, credits: number): Promise<void> {
+	// Hard paywall: callers pass the exact starting balance (0 for new signups).
+	// No free-credit default and no INITIAL_USER_CREDITS env fallback.
 	await db
 		.insert(userCredits)
 		.values({
@@ -81,13 +75,84 @@ export async function addCredits(userId: number, amount: number): Promise<void> 
 		})
 }
 
+// Grants a credit-pack purchase exactly once, keyed on the Stripe checkout
+// session ID. Returns true when this call performed the grant, false when the
+// session was already recorded (a replayed webhook). The payment insert and the
+// credit increment share one transaction so a replay can never grant twice.
+export async function grantCreditPackPurchase(data: {
+	userId: number
+	credits: number
+	stripeSessionId: string
+	stripePaymentIntentId?: string | null
+	amount: number
+	metadata?: any
+}): Promise<boolean> {
+	return db.transaction(async (tx) => {
+		const inserted = await tx
+			.insert(payments)
+			.values({
+				userId: data.userId,
+				stripeSessionId: data.stripeSessionId,
+				stripePaymentIntentId: data.stripePaymentIntentId ?? null,
+				amount: data.amount.toString(),
+				purpose: 'credit_pack',
+				status: 'succeeded',
+				metadata: data.metadata,
+			})
+			.onConflictDoNothing({ target: payments.stripeSessionId })
+			.returning({ id: payments.id })
+
+		// A conflict means this session was already processed — grant nothing.
+		if (inserted.length === 0) {
+			return false
+		}
+
+		await tx
+			.insert(userCredits)
+			.values({ userId: data.userId, credits: data.credits })
+			.onConflictDoUpdate({
+				target: userCredits.userId,
+				set: {
+					credits: sql`${userCredits.credits} + ${data.credits}`,
+					updatedAt: new Date(),
+				},
+			})
+
+		return true
+	})
+}
+
+// Refunds the credit consumed by a failed generation, exactly once per job.
+// Both failure observers (the Replicate webhook and the status-polling route)
+// call this; the atomic claim of credit_refunded_at (UPDATE ... WHERE ... IS
+// NULL) guarantees only one of them performs the refund.
+export async function refundCreditOnce(jobId: number, userId: number): Promise<boolean> {
+	// In unlimited dev mode no credit was consumed, so nothing is refunded.
+	if (isUnlimitedCreditsMode()) {
+		return false
+	}
+
+	const claimed = await db
+		.update(previewJobs)
+		.set({ creditRefundedAt: new Date() })
+		.where(and(eq(previewJobs.id, jobId), isNull(previewJobs.creditRefundedAt)))
+		.returning({ id: previewJobs.id })
+
+	if (claimed.length === 0) {
+		return false
+	}
+
+	await addCredits(userId, 1)
+	return true
+}
+
 export async function recordPayment(data: {
 	userId: number
 	teamId?: number
 	stripeSessionId?: string
 	stripePaymentIntentId?: string
 	amount: number
-	purpose: 'export' | 'credit-pack' | 'subscription'
+	purpose: 'export' | 'credit_pack' | 'subscription'
 	status: 'pending' | 'succeeded' | 'failed'
 	metadata?: any
 }): Promise<void> {

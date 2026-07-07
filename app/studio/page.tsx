@@ -5,18 +5,35 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Slider } from '@/components/ui/slider'
 import { Loader2, Download, Share2, RotateCw, ZoomIn, Eye, AlertCircle, RefreshCw } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
-import type { BodyPart, TattooVariant, TattooPromptParams } from '@/types/core'
-import { buildTattooPrompt } from '@/lib/prompt'
-import { useFileUpload, formatBytes } from '@/hooks/use-file-upload'
+import type { BodyPart, TattooVariant } from '@/types/core'
+import { PlacementEditor } from '@/components/placement-editor'
+import { renderComposite, DEFAULT_TRANSFORM, type PlacementTransform } from '@/lib/composite'
+import { useFileUpload } from '@/hooks/use-file-upload'
 import { compressImage, validateImageFile, downloadImage, copyToClipboard } from '@/lib/image-utils'
 import { STUDIO_ERROR_MESSAGES, STUDIO_SUCCESS_MESSAGES, STUDIO_INFO_MESSAGES } from '@/lib/studio-errors'
 import { ImageZoom } from '@/components/ui/kibo-ui/image-zoom'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PurchaseCreditsDialog } from '@/components/purchase-credits-dialog'
+import { PurchaseSuccessPoller } from '@/components/purchase-success-poller'
+import { RegenerateConfirmDialog } from '@/components/regenerate-confirm-dialog'
+import { usePreviewJob, type PreviewJobStatus } from '@/hooks/use-preview-job'
+
+// Honest, human-readable label for each real prediction state. No percentage —
+// the lifecycle has no meaningful progress fraction to report.
+const GENERATION_STATUS_LABEL: Record<PreviewJobStatus, string> = {
+  idle: '',
+  queued: 'Queued — waiting to start…',
+  running: 'Generating your preview…',
+  succeeded: 'Preview ready',
+  failed: 'Generation failed',
+  still_running: 'Still generating — this is taking longer than usual',
+}
+
+const GENERATION_TOAST_ID = 'generation-status'
 
 const bodyParts: Array<{ value: BodyPart; label: string }> = [
 	{ value: 'upper_arm', label: 'Upper Arm' },
@@ -43,18 +60,14 @@ export default function StudioPage() {
 	const [designImageUrl, setDesignImageUrl] = useState<string | null>(null)
 	const [selectedPart, setSelectedPart] = useState<BodyPart>('forearm')
 	const [selectedVariant, setSelectedVariant] = useState<TattooVariant>('black_gray')
-	const [scale, setScale] = useState(100)
-	const [rotation, setRotation] = useState(0)
-	const [opacity, setOpacity] = useState(100)
+	// Visual placement: position/scale/rotation/opacity of the design over the
+	// body photo. Survives a generation round-trip so the user can nudge and
+	// regenerate without re-placing.
+	const [transform, setTransform] = useState<PlacementTransform>(DEFAULT_TRANSFORM)
 	const [customPrompt, setCustomPrompt] = useState('')
 	const [useCustomPrompt, setUseCustomPrompt] = useState(false)
-	const [generatedPrompt, setGeneratedPrompt] = useState('')
-	const [showGeneratedPrompt, setShowGeneratedPrompt] = useState(false)
-	// Dynamic prompt builder states
-	const [promptRealism, setPromptRealism] = useState('realistic')
-	const [promptBlending, setPromptBlending] = useState('natural')
-	const [promptDetails, setPromptDetails] = useState('')
-	const [isGenerating, setIsGenerating] = useState(false)
+	// True while we render the composite and upload it, before the job is created.
+	const [isComposing, setIsComposing] = useState(false)
 	const [isUploadingBody, setIsUploadingBody] = useState(false)
 	const [isUploadingDesign, setIsUploadingDesign] = useState(false)
 	const [bodyUploadProgress, setBodyUploadProgress] = useState(0)
@@ -62,8 +75,68 @@ export default function StudioPage() {
 	const [previewResult, setPreviewResult] = useState<string | null>(null)
 	const [jobId, setJobId] = useState<number | null>(null)
 	const [credits, setCredits] = useState<number | null>(null)
-	const [generationProgress, setGenerationProgress] = useState(0)
+	const [userId, setUserId] = useState<number | null>(null)
 	const [recentPreviews, setRecentPreviews] = useState<Array<{ id: number; url: string; createdAt: Date }>>([])
+	const [showPurchaseDialog, setShowPurchaseDialog] = useState(false)
+	const [showRegenerateDialog, setShowRegenerateDialog] = useState(false)
+
+	// In-flight job id is persisted per-user so it survives reload / navigation.
+	const storageKey = userId !== null ? `taatoo:active-preview-job:${userId}` : null
+
+	const previewJob = usePreviewJob({
+		storageKey,
+		onSucceeded: ({ jobId: id, imageUrl }) => {
+			setPreviewResult(imageUrl)
+			setJobId(id)
+			setRecentPreviews(prev => {
+				if (prev.some(p => p.id === id)) return prev
+				return [{ id, url: imageUrl, createdAt: new Date() }, ...prev.slice(0, 3)]
+			})
+			toast.success(STUDIO_SUCCESS_MESSAGES.GENERATION_COMPLETE, { id: GENERATION_TOAST_ID })
+		},
+		onFailed: ({ creditRefunded }) => {
+			toast.error(STUDIO_ERROR_MESSAGES.REPLICATE_ERROR, { id: GENERATION_TOAST_ID })
+			// The server guarantees an exactly-once refund on failure; reflect it
+			// so the user sees their credit is back.
+			if (creditRefunded) {
+				setCredits(prev => (prev !== null && prev !== 999999 ? prev + 1 : prev))
+				toast.info(STUDIO_SUCCESS_MESSAGES.CREDIT_REFUNDED)
+			}
+		},
+		onStillRunning: () => {
+			toast.info(
+				'Still generating — this is taking longer than usual. You can leave; find it in My Previews when it finishes.',
+				{ id: GENERATION_TOAST_ID, duration: 8000 }
+			)
+		},
+	})
+
+	const isGenerating = previewJob.isActive
+
+	// Load the signed-in user's id (to scope the in-flight job) and current
+	// credit balance once on mount.
+	useEffect(() => {
+		let cancelled = false
+		fetch('/api/user/dashboard', { cache: 'no-store' })
+			.then(res => (res.ok ? res.json() : null))
+			.then(data => {
+				if (cancelled || !data) return
+				if (typeof data.user?.id === 'number') setUserId(data.user.id)
+				if (typeof data.credits === 'number') setCredits(data.credits)
+			})
+			.catch(() => {})
+		return () => {
+			cancelled = true
+		}
+	}, [])
+
+	// Drive the persistent loading toast from the real status while a job is in
+	// flight — covers both a fresh Generate and a job reconnected on return.
+	useEffect(() => {
+		if (previewJob.status === 'queued' || previewJob.status === 'running') {
+			toast.loading(GENERATION_STATUS_LABEL[previewJob.status], { id: GENERATION_TOAST_ID })
+		}
+	}, [previewJob.status])
 
 	// File upload hooks for body and design images
 	const [
@@ -99,39 +172,6 @@ export default function StudioPage() {
 		maxSize: 10 * 1024 * 1024, // 10MB
 		multiple: false,
 	})
-
-	// Generate prompt preview when parameters change
-	useEffect(() => {
-		if (!useCustomPrompt) {
-			const params: TattooPromptParams = {
-				part: selectedPart,
-				variant: selectedVariant,
-				scale: scale / 100,
-				rotationDeg: rotation,
-				opacity: opacity / 100,
-			}
-			let basePrompt = buildTattooPrompt(params)
-			
-			// Add dynamic enhancements
-			if (promptRealism === 'photorealistic') {
-				basePrompt += ', photorealistic quality, high detail'
-			} else if (promptRealism === 'artistic') {
-				basePrompt += ', artistic style, stylized'
-			}
-			
-			if (promptBlending === 'seamless') {
-				basePrompt += ', seamlessly blended with skin'
-			} else if (promptBlending === 'bold') {
-				basePrompt += ', bold and prominent'
-			}
-			
-			if (promptDetails) {
-				basePrompt += `, ${promptDetails}`
-			}
-			
-			setGeneratedPrompt(basePrompt)
-		}
-	}, [selectedPart, selectedVariant, scale, rotation, opacity, useCustomPrompt, promptRealism, promptBlending, promptDetails])
 
 	// Handle file uploads when files change
 	useEffect(() => {
@@ -248,24 +288,31 @@ export default function StudioPage() {
 			return
 		}
 
-		setIsGenerating(true)
-		setPreviewResult(null)
-		setGenerationProgress(0)
+		// Render the placement client-side and upload it. The composite (body photo
+		// with the design overlaid at the chosen transform) is what the model works
+		// from, so placement is carried by pixels, not prose.
+		let compositeImageUrl: string
+		setIsComposing(true)
+		const composeToast = toast.loading('Preparing your placement…')
+		try {
+			const blob = await renderComposite(bodyImageUrl, designImageUrl, transform)
+			const file = new File([blob], 'composite.jpg', { type: 'image/jpeg' })
+			const formData = new FormData()
+			formData.append('file', file)
+			const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData })
+			if (!uploadRes.ok) throw new Error('composite upload failed')
+			compositeImageUrl = (await uploadRes.json()).url
+		} catch (error) {
+			console.error('Composite error:', error)
+			toast.dismiss(composeToast)
+			toast.error('Could not prepare the placement. Please try again.')
+			return
+		} finally {
+			setIsComposing(false)
+		}
+		toast.dismiss(composeToast)
 
-		// Start progress animation
-		const progressInterval = setInterval(() => {
-			setGenerationProgress(prev => {
-				if (prev >= 90) return 90
-				return prev + 10
-			})
-		}, 3000)
-
-		const generatingToast = toast.loading(
-			<div className="flex flex-col gap-1">
-				<span>{STUDIO_SUCCESS_MESSAGES.GENERATION_STARTED}</span>
-				<span className="text-xs opacity-70">{STUDIO_INFO_MESSAGES.GENERATING}</span>
-			</div>
-		)
+		toast.loading(GENERATION_STATUS_LABEL.queued, { id: GENERATION_TOAST_ID })
 
 		try {
 			const response = await fetch('/api/preview', {
@@ -274,11 +321,13 @@ export default function StudioPage() {
 				body: JSON.stringify({
 					bodyImageUrl,
 					designImageUrl,
+					compositeImageUrl,
 					part: selectedPart,
 					variant: selectedVariant,
-					scale: scale / 100,
-					rotationDeg: rotation,
-					opacity: opacity / 100,
+					// Recorded for metadata / the share page; no longer drives the prompt.
+					scale: transform.scale,
+					rotationDeg: transform.rotationDeg,
+					opacity: transform.opacity,
 					customPrompt: useCustomPrompt ? customPrompt : null,
 				}),
 			})
@@ -286,102 +335,36 @@ export default function StudioPage() {
 			const data = await response.json()
 
 			if (!response.ok) {
-				clearInterval(progressInterval)
-				toast.dismiss(generatingToast)
-				
+				toast.dismiss(GENERATION_TOAST_ID)
+
 				if (response.status === 402) {
 					if (data.error?.includes('Replicate')) {
+						// Replicate-side billing failure, not the user's credit balance.
 						toast.error(data.error)
 					} else {
-						toast.error(
-							<div className="flex flex-col gap-1">
-								<span>{STUDIO_ERROR_MESSAGES.CREDITS_INSUFFICIENT}</span>
-								<span className="text-xs">You have {data.credits} credits remaining</span>
-							</div>
-						)
+						// The paywall: open the purchase flow at the moment of intent.
+						setShowPurchaseDialog(true)
 					}
 				} else if (response.status === 400 && data.error?.includes('localhost')) {
 					toast.error(STUDIO_ERROR_MESSAGES.LOCALHOST_ERROR)
 				} else {
 					toast.error(data.error || STUDIO_ERROR_MESSAGES.GENERATION_FAILED)
 				}
-				setIsGenerating(false)
-				setGenerationProgress(0)
 				return
 			}
 
-			setJobId(data.jobId)
 			setCredits(data.creditsRemaining)
-
-			// Poll for results
-			const pollInterval = setInterval(async () => {
-				try {
-					const statusResponse = await fetch(`/api/preview/${data.jobId}`)
-					const statusData = await statusResponse.json()
-
-					if (statusData.job.status === 'succeeded' && statusData.results.length > 0) {
-						clearInterval(pollInterval)
-						clearInterval(progressInterval)
-						setGenerationProgress(100)
-						setPreviewResult(statusData.results[0].imageUrl)
-						
-						// Add to recent previews
-						setRecentPreviews(prev => [
-							{ id: data.jobId, url: statusData.results[0].imageUrl, createdAt: new Date() },
-							...prev.slice(0, 3)
-						])
-						
-						toast.dismiss(generatingToast)
-						toast.success(STUDIO_SUCCESS_MESSAGES.GENERATION_COMPLETE)
-						setIsGenerating(false)
-						setGenerationProgress(0)
-					} else if (statusData.job.status === 'failed') {
-						clearInterval(pollInterval)
-						clearInterval(progressInterval)
-						toast.dismiss(generatingToast)
-						
-						const errorMsg = statusData.job.error || STUDIO_ERROR_MESSAGES.GENERATION_FAILED
-						toast.error(
-							<div className="flex flex-col gap-1">
-								<span>{STUDIO_ERROR_MESSAGES.REPLICATE_ERROR}</span>
-								<span className="text-xs opacity-70">{errorMsg}</span>
-							</div>
-						)
-						
-						// Update credits if refunded
-						if (statusData.creditsRefunded) {
-							setCredits(prev => prev !== null ? prev + 1 : prev)
-							toast.info(STUDIO_SUCCESS_MESSAGES.CREDIT_REFUNDED)
-						}
-						
-						setIsGenerating(false)
-						setGenerationProgress(0)
-					}
-				} catch (error) {
-					console.error('Polling error:', error)
-				}
-			}, 2000)
-			
-			// Timeout after 2 minutes
-			setTimeout(() => {
-				if (isGenerating) {
-					clearInterval(pollInterval)
-					clearInterval(progressInterval)
-					toast.dismiss(generatingToast)
-					toast.error('Generation timed out. Please try again.')
-					setIsGenerating(false)
-					setGenerationProgress(0)
-				}
-			}, 120000)
+			// Hand the job to the polling hook, which derives status from the real
+			// prediction lifecycle and reconnects if the user leaves and returns.
+			previewJob.track(data.jobId)
 		} catch (error) {
-			clearInterval(progressInterval)
-			toast.dismiss(generatingToast)
+			toast.dismiss(GENERATION_TOAST_ID)
 			console.error('Generation error:', error)
 			toast.error(STUDIO_ERROR_MESSAGES.GENERATION_FAILED)
-			setIsGenerating(false)
-			setGenerationProgress(0)
 		}
 	}
+
+	const handleRegenerate = () => setShowRegenerateDialog(true)
 
 	const handleDownload = async () => {
 		if (!previewResult) return
@@ -428,32 +411,35 @@ export default function StudioPage() {
 		// Reset settings to defaults
 		setSelectedPart('forearm')
 		setSelectedVariant('black_gray')
-		setScale(100)
-		setRotation(0)
-		setOpacity(100)
-		setPromptRealism('realistic')
-		setPromptBlending('natural')
-		setPromptDetails('')
+		setTransform(DEFAULT_TRANSFORM)
 		setCustomPrompt('')
 		setUseCustomPrompt(false)
-		setShowGeneratedPrompt(false)
 		
-		// Clear preview result but keep history
+		// Clear preview result and stop tracking any in-flight job, but keep history
 		setPreviewResult(null)
 		setJobId(null)
-		
+		previewJob.reset()
+
 		toast.success('Studio reset - ready for new design!')
 	}
 
 	return (
 		<div className='container mx-auto py-8 px-4 pb-24'>
 			<Toaster position="top-center" richColors />
-			
+			<PurchaseSuccessPoller onConfirmed={setCredits} />
+			<PurchaseCreditsDialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog} />
+			<RegenerateConfirmDialog
+				open={showRegenerateDialog}
+				onOpenChange={setShowRegenerateDialog}
+				onConfirm={generatePreview}
+			/>
+
 			<div className='mb-8'>
 				<h1 className='text-3xl font-bold'>Tattoo Preview Studio</h1>
 				<p className='text-gray-600 mt-2'>
 					Upload a body photo and design to see how your tattoo will look
 				</p>
+				<a href='/previews' className='text-sm text-blue-600 hover:underline mt-1 inline-block'>My Previews →</a>
 				{credits !== null && (
 					<div className='flex items-center gap-2 mt-1'>
 						<p className='text-sm text-gray-500'>
@@ -626,43 +612,6 @@ export default function StudioPage() {
 											))}
 										</RadioGroup>
 									</div>
-
-									{/* Adjustments */}
-									<div className='space-y-4'>
-										<div>
-											<Label>Scale: {scale}%</Label>
-											<Slider
-												value={[scale]}
-												onValueChange={([v]) => setScale(v)}
-												min={50}
-												max={150}
-												step={5}
-												className='mt-2'
-											/>
-										</div>
-										<div>
-											<Label>Rotation: {rotation}°</Label>
-											<Slider
-												value={[rotation]}
-												onValueChange={([v]) => setRotation(v)}
-												min={-180}
-												max={180}
-												step={5}
-												className='mt-2'
-											/>
-										</div>
-										<div>
-											<Label>Opacity: {opacity}%</Label>
-											<Slider
-												value={[opacity]}
-												onValueChange={([v]) => setOpacity(v)}
-												min={50}
-												max={100}
-												step={5}
-												className='mt-2'
-											/>
-										</div>
-									</div>
 								</AccordionContent>
 							</AccordionItem>
 						</Accordion>
@@ -699,184 +648,86 @@ export default function StudioPage() {
 								))}
 							</RadioGroup>
 						</Card>
-
-						{/* Adjustments */}
-						<Card className='p-6'>
-							<h2 className='text-xl font-semibold mb-4'>Adjustments</h2>
-							<div className='space-y-4'>
-								<div>
-									<Label>Scale: {scale}%</Label>
-									<Slider
-										value={[scale]}
-										onValueChange={([v]) => setScale(v)}
-										min={50}
-										max={150}
-										step={5}
-										className='mt-2'
-									/>
-								</div>
-								<div>
-									<Label>Rotation: {rotation}°</Label>
-									<Slider
-										value={[rotation]}
-										onValueChange={([v]) => setRotation(v)}
-										min={-180}
-										max={180}
-										step={5}
-										className='mt-2'
-									/>
-								</div>
-								<div>
-									<Label>Opacity: {opacity}%</Label>
-									<Slider
-										value={[opacity]}
-										onValueChange={([v]) => setOpacity(v)}
-										min={50}
-										max={100}
-										step={5}
-										className='mt-2'
-									/>
-								</div>
-							</div>
-						</Card>
 					</div>
 
-					{/* Enhanced Prompt Builder */}
+					{/* Advanced: optional free-text style direction. Placement is handled
+					    visually now, so this only nudges the look — capped server-side. */}
 					<Card className='p-6'>
-						<h2 className='text-xl font-semibold mb-4'>Fine-tune Output</h2>
-						<div className='space-y-4'>
-							<div className='flex items-center justify-between mb-2'>
-								<Label className='text-sm font-medium'>Prompt Mode</Label>
-								<div className='flex items-center space-x-2'>
-									<input
-										type='checkbox'
-										id='use-custom-prompt'
-										checked={useCustomPrompt}
-										onChange={(e) => {
-											setUseCustomPrompt(e.target.checked)
-											setShowGeneratedPrompt(false)
-										}}
-										className='rounded border-gray-300'
-									/>
-									<Label htmlFor='use-custom-prompt' className='text-sm'>Advanced</Label>
-								</div>
+						<div className='flex items-center justify-between mb-2'>
+							<Label className='text-sm font-medium'>Advanced prompt</Label>
+							<div className='flex items-center space-x-2'>
+								<input
+									type='checkbox'
+									id='use-custom-prompt'
+									checked={useCustomPrompt}
+									onChange={(e) => setUseCustomPrompt(e.target.checked)}
+									className='rounded border-gray-300'
+								/>
+								<Label htmlFor='use-custom-prompt' className='text-sm'>Enable</Label>
 							</div>
-							
-							{useCustomPrompt ? (
-								<div className='space-y-2'>
-									<Label className='text-xs text-gray-500'>Full Control Mode</Label>
-									<textarea
-										placeholder='Enter your custom prompt (e.g., "Apply the tattoo design from the second image onto the arm in the first image. Make it look realistic and natural.")'
-										value={customPrompt}
-										onChange={(e) => setCustomPrompt(e.target.value)}
-										className='w-full p-3 border rounded-lg min-h-[120px] resize-y text-sm'
-									/>
-								</div>
-							) : (
-								<div className='space-y-4'>
-									{/* Realism Level */}
-									<div>
-										<Label className='text-sm mb-2 block'>Realism</Label>
-										<div className='grid grid-cols-3 gap-2'>
-											<Button
-												variant={promptRealism === 'realistic' ? 'default' : 'outline'}
-												size='sm'
-												onClick={() => setPromptRealism('realistic')}
-											>
-												Realistic
-											</Button>
-											<Button
-												variant={promptRealism === 'photorealistic' ? 'default' : 'outline'}
-												size='sm'
-												onClick={() => setPromptRealism('photorealistic')}
-											>
-												Photo-Real
-											</Button>
-											<Button
-												variant={promptRealism === 'artistic' ? 'default' : 'outline'}
-												size='sm'
-												onClick={() => setPromptRealism('artistic')}
-											>
-												Artistic
-											</Button>
-										</div>
-									</div>
-									
-									{/* Blending Style */}
-									<div>
-										<Label className='text-sm mb-2 block'>Skin Blending</Label>
-										<div className='grid grid-cols-3 gap-2'>
-											<Button
-												variant={promptBlending === 'natural' ? 'default' : 'outline'}
-												size='sm'
-												onClick={() => setPromptBlending('natural')}
-											>
-												Natural
-											</Button>
-											<Button
-												variant={promptBlending === 'seamless' ? 'default' : 'outline'}
-												size='sm'
-												onClick={() => setPromptBlending('seamless')}
-											>
-												Seamless
-											</Button>
-											<Button
-												variant={promptBlending === 'bold' ? 'default' : 'outline'}
-												size='sm'
-												onClick={() => setPromptBlending('bold')}
-											>
-												Bold
-											</Button>
-										</div>
-									</div>
-									
-									{/* Additional Details */}
-									<div>
-										<Label className='text-sm mb-2 block'>Additional Details (Optional)</Label>
-										<input
-											type='text'
-											placeholder='e.g., "fresh ink look, vibrant colors, aged appearance"'
-											value={promptDetails}
-											onChange={(e) => setPromptDetails(e.target.value)}
-											className='w-full p-2 border rounded-lg text-sm'
-										/>
-									</div>
-									
-									{/* Show Generated Prompt */}
-									<div>
-										<Button
-											variant='ghost'
-											size='sm'
-											onClick={() => setShowGeneratedPrompt(!showGeneratedPrompt)}
-											className='text-xs'
-										>
-											<Eye className='w-3 h-3 mr-1' />
-											{showGeneratedPrompt ? 'Hide' : 'View'} Final Prompt
-										</Button>
-										{showGeneratedPrompt && (
-											<div className='mt-2 p-2 bg-gray-50 border rounded text-xs font-mono'>
-												{generatedPrompt}
-											</div>
-										)}
-									</div>
-								</div>
-							)}
 						</div>
+
+						{useCustomPrompt ? (
+							<div className='space-y-2'>
+								<Label className='text-xs text-gray-500'>
+									Full control — describe exactly how the tattoo should be rendered.
+								</Label>
+								<textarea
+									placeholder='e.g., "Render the design as a realistic black and grey tattoo, following the arm&apos;s contours with natural skin shading."'
+									value={customPrompt}
+									maxLength={2000}
+									onChange={(e) => setCustomPrompt(e.target.value)}
+									className='w-full p-3 border rounded-lg min-h-[120px] resize-y text-sm'
+								/>
+								<p className='text-xs text-gray-400 text-right'>{customPrompt.length}/2000</p>
+							</div>
+						) : (
+							<p className='text-sm text-gray-500'>
+								Leave off to let the studio write the prompt from your style and placement.
+							</p>
+						)}
 					</Card>
 
 				</div>
 
 				{/* Preview Panel */}
 				<div className='space-y-6'>
+					{/* Visual placement editor — the design is positioned live on the
+					    body photo; the rendered composite is what the model receives.
+					    The transform persists across generations so the user can nudge
+					    and regenerate without re-placing. */}
+					{bodyImageUrl && designImageUrl && (
+						<Card className='p-6'>
+							<h2 className='text-xl font-semibold mb-4'>Position Your Design</h2>
+							<PlacementEditor
+								bodyImageUrl={bodyImageUrl}
+								designImageUrl={designImageUrl}
+								transform={transform}
+								onTransformChange={setTransform}
+								disabled={isGenerating || isComposing}
+							/>
+						</Card>
+					)}
+
 					<Card className='p-6 min-h-[600px] flex items-center justify-center'>
 						{isGenerating && !previewResult ? (
 							<div className='w-full space-y-4'>
 								<Skeleton className='w-full h-96' />
+								{/* Indeterminate animation + honest status label derived from
+								    the real prediction lifecycle — never a fake percentage. */}
 								<div className='text-center'>
 									<Loader2 className='w-8 h-8 mx-auto mb-2 animate-spin text-gray-400' />
-									<p className='text-gray-600'>Generating your tattoo preview...</p>
-									<p className='text-sm text-gray-500 mt-1'>This usually takes 30-60 seconds</p>
+									<p className='text-gray-600'>{GENERATION_STATUS_LABEL[previewJob.status] || GENERATION_STATUS_LABEL.running}</p>
+									<p className='text-sm text-gray-500 mt-1'>You can leave this page — your preview keeps generating and appears in My Previews.</p>
 								</div>
+							</div>
+						) : previewJob.status === 'still_running' && !previewResult ? (
+							<div className='text-center text-gray-600'>
+								<Loader2 className='w-8 h-8 mx-auto mb-3 animate-spin text-gray-400' />
+								<p className='font-medium'>Still generating</p>
+								<p className='text-sm text-gray-500 mt-2 max-w-xs mx-auto'>
+									This is taking longer than usual. It will keep running — check My Previews in a bit to see the result.
+								</p>
 							</div>
 						) : previewResult ? (
 							<div className='w-full'>
@@ -900,7 +751,7 @@ export default function StudioPage() {
 										variant='outline'
 										size='sm'
 										className='flex-1'
-										onClick={generatePreview}
+										onClick={handleRegenerate}
 										disabled={isGenerating}
 									>
 										<RotateCw className='mr-2 h-4 w-4' />
@@ -1000,20 +851,25 @@ export default function StudioPage() {
 								</Button>
 							)}
 							{isGenerating && (
-								<div className='hidden sm:block w-32'>
-									<Progress value={generationProgress} className='h-2' />
-								</div>
+								<span className='hidden sm:block text-sm text-gray-600 max-w-[220px] truncate'>
+									{GENERATION_STATUS_LABEL[previewJob.status]}
+								</span>
 							)}
 							<Button
 								onClick={generatePreview}
-								disabled={isGenerating || !bodyImageUrl || !designImageUrl || isUploadingBody || isUploadingDesign}
+								disabled={isGenerating || isComposing || !bodyImageUrl || !designImageUrl || isUploadingBody || isUploadingDesign}
 								size='lg'
 								className='min-w-[180px]'
 							>
-								{isGenerating ? (
+								{isComposing ? (
 									<>
 										<Loader2 className='mr-2 h-4 w-4 animate-spin' />
-										{generationProgress > 0 ? `${generationProgress}%` : 'Generating...'}
+										Preparing…
+									</>
+								) : isGenerating ? (
+									<>
+										<Loader2 className='mr-2 h-4 w-4 animate-spin' />
+										{previewJob.status === 'queued' ? 'Queued…' : 'Generating…'}
 									</>
 								) : (
 									<>

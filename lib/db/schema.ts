@@ -119,6 +119,9 @@ export const previewJobs = pgTable('preview_jobs', {
   prompt: text('prompt').notNull(),
   seed: integer('seed'),
   variantParams: jsonb('variant_params'),
+  // Set exactly once when a failed generation's credit is refunded; claiming
+  // this marker atomically is what makes double refunds impossible.
+  creditRefundedAt: timestamp('credit_refunded_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 

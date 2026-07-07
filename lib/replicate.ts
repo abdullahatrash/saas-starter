@@ -5,12 +5,44 @@ const replicate = new Replicate({
 	auth: process.env.REPLICATE_API_TOKEN || '',
 })
 
+// Generation model. Confirmed input schema (from the model's published OpenAPI
+// schema, version 9a1df086...): prompt (required), image_input (array of URIs,
+// up to 14), aspect_ratio (enum incl. 'match_input_image', default
+// 'match_input_image'), resolution ('1K' | '2K' | '4K', default '1K'),
+// output_format ('jpg' | 'png'), google_search, image_search. There is NO seed
+// input, so reproducibility cannot be wired through. Output is a single URI
+// string (older models returned arrays; handlers tolerate both).
+export const GENERATION_MODEL = 'google/nano-banana-2'
+
 export interface NanoBananaInput {
 	bodyImageUrl: string
 	designImageUrl: string
 	prompt: string
-	seed?: number
+	aspectRatio?: string
+	resolution?: '1K' | '2K'
 	webhookUrl?: string
+}
+
+function toReplicatePrediction(prediction: {
+	id: string
+	status: string
+	output?: unknown
+	error?: unknown
+	logs?: string
+	metrics?: { predict_time?: number; total_time?: number }
+}): ReplicatePrediction {
+	return {
+		id: prediction.id,
+		status: prediction.status as ReplicatePrediction['status'],
+		output: prediction.output as ReplicatePrediction['output'],
+		error: prediction.error
+			? typeof prediction.error === 'string'
+				? prediction.error
+				: JSON.stringify(prediction.error)
+			: undefined,
+		logs: prediction.logs,
+		metrics: prediction.metrics,
+	}
 }
 
 export async function createPrediction(input: NanoBananaInput): Promise<ReplicatePrediction> {
@@ -19,63 +51,40 @@ export async function createPrediction(input: NanoBananaInput): Promise<Replicat
 	}
 
 	try {
-		// Using google/nano-banana model directly
-		const requestBody = {
+		const prediction = await replicate.predictions.create({
+			model: GENERATION_MODEL,
 			input: {
 				prompt: input.prompt,
+				// Order matters: the body photo first, then the design to place on it.
 				image_input: [input.bodyImageUrl, input.designImageUrl],
-				output_format: 'jpg'
-			}
-		}
-
-		// Add webhook if provided
-		if (input.webhookUrl) {
-			(requestBody as any).webhook = input.webhookUrl
-			;(requestBody as any).webhook_events_filter = ['start', 'completed']
-		}
-
-		console.log('Creating nano-banana prediction with:', JSON.stringify(requestBody, null, 2))
-
-		// Create the prediction using the specific nano-banana endpoint
-		const response = await fetch('https://api.replicate.com/v1/models/google/nano-banana/predictions', {
-			method: 'POST',
-			headers: {
-				'Authorization': `Bearer ${process.env.REPLICATE_API_TOKEN}`,
-				'Content-Type': 'application/json',
+				// Default: match the input photo's aspect ratio at 1K resolution.
+				aspect_ratio: input.aspectRatio ?? 'match_input_image',
+				resolution: input.resolution ?? '1K',
+				output_format: 'jpg',
 			},
-			body: JSON.stringify(requestBody)
+			...(input.webhookUrl
+				? {
+						webhook: input.webhookUrl,
+						webhook_events_filter: ['start', 'completed'] as ('start' | 'completed')[],
+					}
+				: {}),
 		})
 
-		if (!response.ok) {
-			const error = await response.text()
-			console.error('Replicate API error response:', error)
-			throw new Error(`Replicate API error: ${response.status} - ${error}`)
-		}
-
-		const prediction = await response.json()
-
 		if (prediction?.error) {
-			throw new Error(JSON.stringify(prediction.error))
+			throw new Error(
+				typeof prediction.error === 'string' ? prediction.error : JSON.stringify(prediction.error)
+			)
 		}
 
-		console.log('Prediction created successfully:', prediction.id)
-
-		return {
-			id: prediction.id,
-			status: prediction.status as any,
-			output: prediction.output as any,
-			error: prediction.error ? JSON.stringify(prediction.error) : undefined,
-			logs: prediction.logs,
-			metrics: prediction.metrics as any,
-		}
+		return toReplicatePrediction(prediction)
 	} catch (error: any) {
 		console.error('Replicate API error:', error)
-		
+
 		// Check for rate limit or billing errors
 		if (error.message?.includes('insufficient credit') || error.message?.includes('billing')) {
 			throw new Error('Replicate API billing error: Please check your Replicate account credits')
 		}
-		
+
 		throw error
 	}
 }
@@ -87,19 +96,7 @@ export async function getPrediction(predictionId: string): Promise<ReplicatePred
 
 	try {
 		const prediction = await replicate.predictions.get(predictionId)
-		
-		if (prediction?.error) {
-			throw new Error(JSON.stringify(prediction.error))
-		}
-		
-		return {
-			id: prediction.id,
-			status: prediction.status as any,
-			output: prediction.output as any,
-			error: prediction.error ? JSON.stringify(prediction.error) : undefined,
-			logs: prediction.logs,
-			metrics: prediction.metrics as any,
-		}
+		return toReplicatePrediction(prediction)
 	} catch (error: any) {
 		console.error('Error getting prediction:', error)
 		throw new Error(`Replicate API error: ${error.message || error}`)
