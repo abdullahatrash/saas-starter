@@ -2,13 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db/drizzle'
 import { previewJobs, previewResults } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { verifyReplicateWebhook } from '@/lib/replicate-webhook'
 import type { ReplicatePrediction } from '@/types/core'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
 	try {
-		const prediction: ReplicatePrediction = await request.json()
+		const signingSecret = process.env.REPLICATE_WEBHOOK_SIGNING_SECRET
+
+		// Read the raw body before parsing: the signature covers the exact bytes,
+		// and verification must pass before we touch the database.
+		const rawBody = await request.text()
+
+		if (!signingSecret || !verifyReplicateWebhook(request.headers, rawBody, signingSecret)) {
+			return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+		}
+
+		let prediction: ReplicatePrediction
+		try {
+			prediction = JSON.parse(rawBody)
+		} catch {
+			return NextResponse.json({ error: 'Invalid webhook data' }, { status: 400 })
+		}
 
 		if (!prediction.id) {
 			return NextResponse.json({ error: 'Invalid webhook data' }, { status: 400 })

@@ -12,6 +12,11 @@ export async function GET(
 	{ params }: { params: Promise<{ id: string }> }
 ) {
 	try {
+		const user = await getUser()
+		if (!user) {
+			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+		}
+
 		const { id } = await params
 		const jobId = parseInt(id)
 
@@ -26,7 +31,9 @@ export async function GET(
 			.where(eq(previewJobs.id, jobId))
 			.limit(1)
 
-		if (!job) {
+		// Return 404 for both missing jobs and jobs owned by someone else, so
+		// the endpoint never confirms the existence of another user's job.
+		if (!job || job.userId !== user.id) {
 			return NextResponse.json({ error: 'Job not found' }, { status: 404 })
 		}
 
@@ -103,27 +110,23 @@ export async function GET(
 					const isFirstFailure = job.status === 'running' || job.status === 'queued'
 					if (job.userId && isFirstFailure) {
 						try {
-							// Check if credit was consumed (not in dev mode)
-							const user = await getUser()
-							if (user && user.id === job.userId) {
-								const [creditRecord] = await db
-									.select()
-									.from(userCredits)
+							const [creditRecord] = await db
+								.select()
+								.from(userCredits)
+								.where(eq(userCredits.userId, job.userId))
+								.limit(1)
+
+							// Only refund if not in unlimited dev mode
+							if (creditRecord && creditRecord.credits < 999999) {
+								await db
+									.update(userCredits)
+									.set({
+										credits: sql`${userCredits.credits} + 1`,
+										updatedAt: new Date()
+									})
 									.where(eq(userCredits.userId, job.userId))
-									.limit(1)
-								
-								// Only refund if not in unlimited dev mode
-								if (creditRecord && creditRecord.credits < 999999) {
-									await db
-										.update(userCredits)
-										.set({ 
-											credits: sql`${userCredits.credits} + 1`,
-											updatedAt: new Date()
-										})
-										.where(eq(userCredits.userId, job.userId))
-									creditsRefunded = true
-									console.log(`Refunded 1 credit to user ${job.userId} for failed job ${job.id}`)
-								}
+								creditsRefunded = true
+								console.log(`Refunded 1 credit to user ${job.userId} for failed job ${job.id}`)
 							}
 						} catch (error) {
 							console.error('Error refunding credit:', error)
