@@ -2,12 +2,6 @@ import { db } from '@/lib/db/drizzle'
 import { userCredits, payments, previewJobs } from '@/lib/db/schema'
 import { eq, and, isNull, sql } from 'drizzle-orm'
 
-// Get initial credits from environment or use default
-const getInitialCredits = () => {
-	const fromEnv = process.env.INITIAL_USER_CREDITS
-	return fromEnv ? parseInt(fromEnv) : 3
-}
-
 // Check if unlimited credits in dev mode
 const isUnlimitedCreditsMode = () => {
 	return process.env.DEV_UNLIMITED_CREDITS === 'true' && process.env.NODE_ENV !== 'production'
@@ -28,9 +22,9 @@ export async function getUserCredits(userId: number): Promise<number> {
 	return result[0]?.credits || 0
 }
 
-export async function initializeUserCredits(userId: number, initialCredits?: number): Promise<void> {
-	const credits = initialCredits ?? getInitialCredits()
-	
+export async function initializeUserCredits(userId: number, credits: number): Promise<void> {
+	// Hard paywall: callers pass the exact starting balance (0 for new signups).
+	// No free-credit default and no INITIAL_USER_CREDITS env fallback.
 	await db
 		.insert(userCredits)
 		.values({

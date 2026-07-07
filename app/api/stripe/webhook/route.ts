@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { handleSubscriptionChange, stripe } from '@/lib/payments/stripe';
+import { stripe } from '@/lib/payments/stripe';
 import { NextRequest, NextResponse } from 'next/server';
 import { grantCreditPackPurchase } from '@/lib/entitlements';
 
@@ -22,13 +22,6 @@ export async function POST(request: NextRequest) {
   }
 
   switch (event.type) {
-    case 'customer.subscription.updated':
-    case 'customer.subscription.deleted': {
-      const subscription = event.data.object as Stripe.Subscription;
-      await handleSubscriptionChange(subscription);
-      break;
-    }
-
     case 'checkout.session.completed': {
       // The webhook is the single source of truth for credit granting: it runs
       // even if the buyer closes the tab before the success redirect. Granting
