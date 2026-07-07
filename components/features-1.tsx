@@ -1,82 +1,87 @@
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Image, Palette, Download } from 'lucide-react'
+import { ImageUp, Palette, Share2, ArrowRight } from 'lucide-react'
 import { ReactNode } from 'react'
+
+const steps = [
+    {
+        number: '01',
+        title: 'Upload Photos',
+        description: 'Upload a photo of the body part and your tattoo design',
+        icon: ImageUp,
+        tilt: '-rotate-3',
+        delay: '0s',
+    },
+    {
+        number: '02',
+        title: 'Place & Style',
+        description: 'Drag, resize, and rotate the design right on your photo, then pick a style',
+        icon: Palette,
+        tilt: 'rotate-2',
+        delay: '0.6s',
+    },
+    {
+        number: '03',
+        title: 'Share Results',
+        description: 'Download high-res previews or share them with your artist instantly',
+        icon: Share2,
+        tilt: '-rotate-2',
+        delay: '1.2s',
+    },
+]
 
 export default function Features() {
     return (
         <section className="py-20">
-            <div className="@container mx-auto max-w-5xl px-6">
+            <div className="mx-auto max-w-5xl px-6">
                 <div className="text-center">
-                    <h2 className="text-balance text-3xl font-bold">How It Works</h2>
-                    <p className="mt-4 text-lg text-muted-foreground">Three simple steps to perfect tattoo previews</p>
+                    <span className="text-sm font-bold uppercase tracking-wider text-yellow-600">How it works</span>
+                    <h2 className="text-balance mt-2 text-3xl font-bold md:text-4xl">
+                        Three Steps to <span className="text-yellow-500">Your Tattoo</span>
+                    </h2>
+                    <p className="mt-4 text-lg text-muted-foreground">From photo to photorealistic preview in under a minute</p>
                 </div>
-                <div className="@min-4xl:max-w-full @min-4xl:grid-cols-3 mx-auto mt-8 grid max-w-sm gap-6 *:text-center md:mt-16">
-                    <Card className="group shadow-zinc-950/5">
-                        <CardHeader className="pb-3">
-                            <CardDecorator>
-                                <Image
-                                    className="size-6 text-purple-600"
+
+                <div className="relative mt-10 md:mt-16">
+                    {/* Connectors between steps (desktop only) */}
+                    <div aria-hidden className="absolute inset-x-0 top-16 hidden md:block">
+                        <ArrowRight className="absolute left-[31%] size-6 text-yellow-500" />
+                        <ArrowRight className="absolute left-[64.5%] size-6 text-yellow-500" />
+                    </div>
+
+                    <div className="mx-auto grid max-w-sm gap-6 text-center md:max-w-full md:grid-cols-3 md:gap-8">
+                        {steps.map((step) => (
+                            <div
+                                key={step.number}
+                                className="group relative rounded-2xl border border-black/10 bg-white p-8 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[8px_8px_0_0_theme(colors.yellow.400)]"
+                            >
+                                <span
                                     aria-hidden
-                                />
-                            </CardDecorator>
+                                    className="absolute right-5 top-3 text-5xl font-black text-yellow-400/60 transition-colors duration-300 group-hover:text-yellow-400"
+                                >
+                                    {step.number}
+                                </span>
 
-                            <h3 className="mt-6 text-xl font-semibold">1. Upload Photos</h3>
-                        </CardHeader>
+                                <IconTile tilt={step.tilt} delay={step.delay}>
+                                    <step.icon className="size-9 text-yellow-400" strokeWidth={1.75} aria-hidden />
+                                </IconTile>
 
-                        <CardContent>
-                            <p className="text-muted-foreground">Upload a photo of the body part and your tattoo design</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="group shadow-zinc-950/5">
-                        <CardHeader className="pb-3">
-                            <CardDecorator>
-                                <Palette
-                                    className="size-6 text-purple-600"
-                                    aria-hidden
-                                />
-                            </CardDecorator>
-
-                            <h3 className="mt-6 text-xl font-semibold">2. Customize Style</h3>
-                        </CardHeader>
-
-                        <CardContent>
-                            <p className="mt-3 text-muted-foreground">Choose style, adjust size, rotation, and placement</p>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="group shadow-zinc-950/5">
-                        <CardHeader className="pb-3">
-                            <CardDecorator>
-                                <Download
-                                    className="size-6 text-purple-600"
-                                    aria-hidden
-                                />
-                            </CardDecorator>
-
-                            <h3 className="mt-6 text-xl font-semibold">3. Share Results</h3>
-                        </CardHeader>
-
-                        <CardContent>
-                            <p className="mt-3 text-muted-foreground">Download high-res previews or share with clients instantly</p>
-                        </CardContent>
-                    </Card>
+                                <h3 className="mt-8 text-xl font-bold">{step.title}</h3>
+                                <p className="mt-3 text-muted-foreground">{step.description}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </section>
     )
 }
 
-const CardDecorator = ({ children }: { children: ReactNode }) => (
-    <div className="relative mx-auto size-36 duration-200 [--color-border:color-mix(in_oklab,var(--color-zinc-950)10%,transparent)] group-hover:[--color-border:color-mix(in_oklab,var(--color-zinc-950)20%,transparent)] dark:[--color-border:color-mix(in_oklab,var(--color-white)15%,transparent)] dark:group-hover:bg-white/5 dark:group-hover:[--color-border:color-mix(in_oklab,var(--color-white)20%,transparent)]">
+const IconTile = ({ children, tilt, delay }: { children: ReactNode; tilt: string; delay: string }) => (
+    <div className={`mx-auto w-fit ${tilt} transition-transform duration-300 group-hover:rotate-0 group-hover:scale-110`}>
         <div
-            aria-hidden
-            className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-[size:24px_24px]"
-        />
-        <div
-            aria-hidden
-            className="bg-radial to-background absolute inset-0 from-transparent to-75%"
-        />
-        <div className="bg-background absolute inset-0 m-auto flex size-12 items-center justify-center border-l border-t">{children}</div>
+            style={{ animationDelay: delay }}
+            className="motion-safe:animate-tile-float flex size-20 items-center justify-center rounded-2xl bg-black shadow-lg shadow-black/20"
+        >
+            {children}
+        </div>
     </div>
 )
