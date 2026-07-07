@@ -52,4 +52,37 @@ describe('GET /api/preview/[id]', () => {
 
     expect(response.status).toBe(404)
   })
+
+  it('reports creditRefunded:false for a job that has not been refunded', async () => {
+    const owner = await createUser()
+    const job = await createPreviewJob({ userId: owner.id, status: 'succeeded' })
+    await authenticateAs(owner.id)
+
+    const response = await getJob(job.id)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.creditRefunded).toBe(false)
+  })
+
+  it('reports creditRefunded:true when reconnecting to a job whose credit was already refunded', async () => {
+    // Models the reconnect case: the webhook observed the failure and refunded
+    // while the user was away. The job is terminal, so the route does not
+    // re-check the prediction — the refund state must come from the persisted
+    // marker so the returning client can still tell the user their credit is back.
+    const owner = await createUser()
+    const job = await createPreviewJob({
+      userId: owner.id,
+      status: 'failed',
+      creditRefundedAt: new Date(),
+    })
+    await authenticateAs(owner.id)
+
+    const response = await getJob(job.id)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.job.status).toBe('failed')
+    expect(body.creditRefunded).toBe(true)
+  })
 })

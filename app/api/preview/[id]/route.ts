@@ -46,37 +46,33 @@ export async function GET(
 			.where(eq(previewResults.jobId, jobId))
 			.orderBy(previewResults.createdAt)
 
-		// If job is running and has prediction ID, check status
-		if ((job.status === 'running' || job.status === 'queued') && job.replicatePredictionId) {
+		// Reflects the persisted refund marker up front, so a client that
+		// reconnects to an already-failed job (the webhook refunded the credit
+		// while the user was away) still learns the credit came back — not only
+		// the single poll that first observed the failure.
+		let creditRefunded = job.creditRefundedAt !== null
+		let errorMessage: string | undefined
+
+		// Re-check the prediction only while the job is non-terminal. A terminal
+		// job (succeeded/failed) is authoritative in the database already.
+		const isTerminal = job.status === 'succeeded' || job.status === 'failed'
+		if (!isTerminal && job.replicatePredictionId) {
 			try {
 				console.log(`Checking prediction status for job ${job.id}, prediction ${job.replicatePredictionId}`)
 				const prediction = await getPrediction(job.replicatePredictionId)
 				console.log(`Prediction status: ${prediction.status}`, prediction.output ? 'Has output' : 'No output yet')
-				
+
 				// Check if prediction failed due to localhost URLs
 				if (prediction.error?.includes('localhost') || prediction.error?.includes('Connection refused')) {
-					// Update job status to failed
 					await db
 						.update(previewJobs)
 						.set({ status: 'failed' })
 						.where(eq(previewJobs.id, job.id))
-					
-					return NextResponse.json({
-						job: {
-							id: job.id,
-							status: 'failed',
-							error: 'Images not accessible: Please use ngrok or deploy to production for testing with Replicate API',
-							createdAt: job.createdAt,
-							variantParams: job.variantParams,
-						},
-						results: [],
-					})
-				}
-
-				// Update job status based on prediction status. nano-banana-2 returns
-				// a single URI string; older models returned arrays — tolerate both.
-				if (prediction.status === 'succeeded' && prediction.output) {
-					// Save result
+					job.status = 'failed'
+					errorMessage = 'Images not accessible: Please use ngrok or deploy to production for testing with Replicate API'
+				} else if (prediction.status === 'succeeded' && prediction.output) {
+					// nano-banana-2 returns a single URI string; older models returned
+					// arrays — tolerate both.
 					const outputUrl = Array.isArray(prediction.output)
 						? prediction.output[0]
 						: prediction.output
@@ -103,59 +99,33 @@ export async function GET(
 							results.push(result)
 						}
 
-						// Update job status
 						await db
 							.update(previewJobs)
 							.set({ status: 'succeeded' })
 							.where(eq(previewJobs.id, job.id))
-						
-						// Update job status in response
 						job.status = 'succeeded'
 					}
 				} else if (prediction.status === 'failed' || prediction.status === 'canceled') {
 					// Refund the consumed credit — exactly once per job, even if the
 					// webhook path also observed (or later observes) this failure.
-					let creditsRefunded = false
 					try {
-						creditsRefunded = await refundCreditOnce(job.id, job.userId)
-						if (creditsRefunded) {
+						const refundedNow = await refundCreditOnce(job.id, job.userId)
+						if (refundedNow) {
+							creditRefunded = true
 							console.log(`Refunded 1 credit to user ${job.userId} for failed job ${job.id}`)
 						}
 					} catch (error) {
 						console.error('Error refunding credit:', error)
 					}
 
-					// Update job status
 					await db
 						.update(previewJobs)
-						.set({ 
-							status: 'failed'
-						})
+						.set({ status: 'failed' })
 						.where(eq(previewJobs.id, job.id))
-					
 					job.status = 'failed'
-					const errorMessage = prediction.error || 'Generation failed'
-					
-					// Add refund flag to response
-					if (creditsRefunded) {
-						return NextResponse.json({
-							job: {
-								id: job.id,
-								status: job.status,
-								error: errorMessage,
-								createdAt: job.createdAt,
-								variantParams: job.variantParams,
-							},
-							results: [],
-							creditsRefunded: true,
-						})
-					}
-				} else if (
-					prediction.status === 'processing' ||
-					prediction.status === 'starting' ||
-					prediction.status === 'queued'
-				) {
-					// Keep as running
+					errorMessage = prediction.error || 'Generation failed'
+				} else {
+					// starting / queued / processing — still in flight.
 					job.status = 'running'
 				}
 			} catch (error) {
@@ -168,9 +138,11 @@ export async function GET(
 			job: {
 				id: job.id,
 				status: job.status,
+				error: errorMessage,
 				createdAt: job.createdAt,
 				variantParams: job.variantParams,
 			},
+			creditRefunded,
 			results: results.map((r) => ({
 				id: r.id,
 				imageUrl: r.imageUrl,

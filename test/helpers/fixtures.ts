@@ -13,6 +13,7 @@ export async function createPreviewJob(opts: {
   userId: number
   status?: string
   replicatePredictionId?: string | null
+  creditRefundedAt?: Date | null
 }) {
   const [team] = await db.insert(teams).values({ name: 'Test Team' }).returning()
   const [studio] = await db
@@ -35,6 +36,7 @@ export async function createPreviewJob(opts: {
       designId: design.id,
       status: opts.status ?? 'queued',
       replicatePredictionId: opts.replicatePredictionId ?? null,
+      creditRefundedAt: opts.creditRefundedAt ?? null,
       prompt: 'a test tattoo prompt',
       seed: 1,
       variantParams: { variant: 'black_gray', scale: 1, rotationDeg: 0, opacity: 1 },

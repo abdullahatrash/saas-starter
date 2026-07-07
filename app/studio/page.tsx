@@ -19,6 +19,21 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PurchaseCreditsDialog } from '@/components/purchase-credits-dialog'
 import { PurchaseSuccessPoller } from '@/components/purchase-success-poller'
+import { RegenerateConfirmDialog } from '@/components/regenerate-confirm-dialog'
+import { usePreviewJob, type PreviewJobStatus } from '@/hooks/use-preview-job'
+
+// Honest, human-readable label for each real prediction state. No percentage —
+// the lifecycle has no meaningful progress fraction to report.
+const GENERATION_STATUS_LABEL: Record<PreviewJobStatus, string> = {
+  idle: '',
+  queued: 'Queued — waiting to start…',
+  running: 'Generating your preview…',
+  succeeded: 'Preview ready',
+  failed: 'Generation failed',
+  still_running: 'Still generating — this is taking longer than usual',
+}
+
+const GENERATION_TOAST_ID = 'generation-status'
 
 const bodyParts: Array<{ value: BodyPart; label: string }> = [
 	{ value: 'upper_arm', label: 'Upper Arm' },
@@ -56,7 +71,6 @@ export default function StudioPage() {
 	const [promptRealism, setPromptRealism] = useState('realistic')
 	const [promptBlending, setPromptBlending] = useState('natural')
 	const [promptDetails, setPromptDetails] = useState('')
-	const [isGenerating, setIsGenerating] = useState(false)
 	const [isUploadingBody, setIsUploadingBody] = useState(false)
 	const [isUploadingDesign, setIsUploadingDesign] = useState(false)
 	const [bodyUploadProgress, setBodyUploadProgress] = useState(0)
@@ -64,9 +78,68 @@ export default function StudioPage() {
 	const [previewResult, setPreviewResult] = useState<string | null>(null)
 	const [jobId, setJobId] = useState<number | null>(null)
 	const [credits, setCredits] = useState<number | null>(null)
-	const [generationProgress, setGenerationProgress] = useState(0)
+	const [userId, setUserId] = useState<number | null>(null)
 	const [recentPreviews, setRecentPreviews] = useState<Array<{ id: number; url: string; createdAt: Date }>>([])
 	const [showPurchaseDialog, setShowPurchaseDialog] = useState(false)
+	const [showRegenerateDialog, setShowRegenerateDialog] = useState(false)
+
+	// In-flight job id is persisted per-user so it survives reload / navigation.
+	const storageKey = userId !== null ? `taatoo:active-preview-job:${userId}` : null
+
+	const previewJob = usePreviewJob({
+		storageKey,
+		onSucceeded: ({ jobId: id, imageUrl }) => {
+			setPreviewResult(imageUrl)
+			setJobId(id)
+			setRecentPreviews(prev => {
+				if (prev.some(p => p.id === id)) return prev
+				return [{ id, url: imageUrl, createdAt: new Date() }, ...prev.slice(0, 3)]
+			})
+			toast.success(STUDIO_SUCCESS_MESSAGES.GENERATION_COMPLETE, { id: GENERATION_TOAST_ID })
+		},
+		onFailed: ({ creditRefunded }) => {
+			toast.error(STUDIO_ERROR_MESSAGES.REPLICATE_ERROR, { id: GENERATION_TOAST_ID })
+			// The server guarantees an exactly-once refund on failure; reflect it
+			// so the user sees their credit is back.
+			if (creditRefunded) {
+				setCredits(prev => (prev !== null && prev !== 999999 ? prev + 1 : prev))
+				toast.info(STUDIO_SUCCESS_MESSAGES.CREDIT_REFUNDED)
+			}
+		},
+		onStillRunning: () => {
+			toast.info(
+				'Still generating — this is taking longer than usual. You can leave; find it in My Previews when it finishes.',
+				{ id: GENERATION_TOAST_ID, duration: 8000 }
+			)
+		},
+	})
+
+	const isGenerating = previewJob.isActive
+
+	// Load the signed-in user's id (to scope the in-flight job) and current
+	// credit balance once on mount.
+	useEffect(() => {
+		let cancelled = false
+		fetch('/api/user/dashboard', { cache: 'no-store' })
+			.then(res => (res.ok ? res.json() : null))
+			.then(data => {
+				if (cancelled || !data) return
+				if (typeof data.user?.id === 'number') setUserId(data.user.id)
+				if (typeof data.credits === 'number') setCredits(data.credits)
+			})
+			.catch(() => {})
+		return () => {
+			cancelled = true
+		}
+	}, [])
+
+	// Drive the persistent loading toast from the real status while a job is in
+	// flight — covers both a fresh Generate and a job reconnected on return.
+	useEffect(() => {
+		if (previewJob.status === 'queued' || previewJob.status === 'running') {
+			toast.loading(GENERATION_STATUS_LABEL[previewJob.status], { id: GENERATION_TOAST_ID })
+		}
+	}, [previewJob.status])
 
 	// File upload hooks for body and design images
 	const [
@@ -251,24 +324,7 @@ export default function StudioPage() {
 			return
 		}
 
-		setIsGenerating(true)
-		setPreviewResult(null)
-		setGenerationProgress(0)
-
-		// Start progress animation
-		const progressInterval = setInterval(() => {
-			setGenerationProgress(prev => {
-				if (prev >= 90) return 90
-				return prev + 10
-			})
-		}, 3000)
-
-		const generatingToast = toast.loading(
-			<div className="flex flex-col gap-1">
-				<span>{STUDIO_SUCCESS_MESSAGES.GENERATION_STARTED}</span>
-				<span className="text-xs opacity-70">{STUDIO_INFO_MESSAGES.GENERATING}</span>
-			</div>
-		)
+		toast.loading(GENERATION_STATUS_LABEL.queued, { id: GENERATION_TOAST_ID })
 
 		try {
 			const response = await fetch('/api/preview', {
@@ -289,9 +345,8 @@ export default function StudioPage() {
 			const data = await response.json()
 
 			if (!response.ok) {
-				clearInterval(progressInterval)
-				toast.dismiss(generatingToast)
-				
+				toast.dismiss(GENERATION_TOAST_ID)
+
 				if (response.status === 402) {
 					if (data.error?.includes('Replicate')) {
 						// Replicate-side billing failure, not the user's credit balance.
@@ -305,83 +360,21 @@ export default function StudioPage() {
 				} else {
 					toast.error(data.error || STUDIO_ERROR_MESSAGES.GENERATION_FAILED)
 				}
-				setIsGenerating(false)
-				setGenerationProgress(0)
 				return
 			}
 
-			setJobId(data.jobId)
 			setCredits(data.creditsRemaining)
-
-			// Poll for results
-			const pollInterval = setInterval(async () => {
-				try {
-					const statusResponse = await fetch(`/api/preview/${data.jobId}`)
-					const statusData = await statusResponse.json()
-
-					if (statusData.job.status === 'succeeded' && statusData.results.length > 0) {
-						clearInterval(pollInterval)
-						clearInterval(progressInterval)
-						setGenerationProgress(100)
-						setPreviewResult(statusData.results[0].imageUrl)
-						
-						// Add to recent previews
-						setRecentPreviews(prev => [
-							{ id: data.jobId, url: statusData.results[0].imageUrl, createdAt: new Date() },
-							...prev.slice(0, 3)
-						])
-						
-						toast.dismiss(generatingToast)
-						toast.success(STUDIO_SUCCESS_MESSAGES.GENERATION_COMPLETE)
-						setIsGenerating(false)
-						setGenerationProgress(0)
-					} else if (statusData.job.status === 'failed') {
-						clearInterval(pollInterval)
-						clearInterval(progressInterval)
-						toast.dismiss(generatingToast)
-						
-						const errorMsg = statusData.job.error || STUDIO_ERROR_MESSAGES.GENERATION_FAILED
-						toast.error(
-							<div className="flex flex-col gap-1">
-								<span>{STUDIO_ERROR_MESSAGES.REPLICATE_ERROR}</span>
-								<span className="text-xs opacity-70">{errorMsg}</span>
-							</div>
-						)
-						
-						// Update credits if refunded
-						if (statusData.creditsRefunded) {
-							setCredits(prev => prev !== null ? prev + 1 : prev)
-							toast.info(STUDIO_SUCCESS_MESSAGES.CREDIT_REFUNDED)
-						}
-						
-						setIsGenerating(false)
-						setGenerationProgress(0)
-					}
-				} catch (error) {
-					console.error('Polling error:', error)
-				}
-			}, 2000)
-			
-			// Timeout after 2 minutes
-			setTimeout(() => {
-				if (isGenerating) {
-					clearInterval(pollInterval)
-					clearInterval(progressInterval)
-					toast.dismiss(generatingToast)
-					toast.error('Generation timed out. Please try again.')
-					setIsGenerating(false)
-					setGenerationProgress(0)
-				}
-			}, 120000)
+			// Hand the job to the polling hook, which derives status from the real
+			// prediction lifecycle and reconnects if the user leaves and returns.
+			previewJob.track(data.jobId)
 		} catch (error) {
-			clearInterval(progressInterval)
-			toast.dismiss(generatingToast)
+			toast.dismiss(GENERATION_TOAST_ID)
 			console.error('Generation error:', error)
 			toast.error(STUDIO_ERROR_MESSAGES.GENERATION_FAILED)
-			setIsGenerating(false)
-			setGenerationProgress(0)
 		}
 	}
+
+	const handleRegenerate = () => setShowRegenerateDialog(true)
 
 	const handleDownload = async () => {
 		if (!previewResult) return
@@ -438,10 +431,11 @@ export default function StudioPage() {
 		setUseCustomPrompt(false)
 		setShowGeneratedPrompt(false)
 		
-		// Clear preview result but keep history
+		// Clear preview result and stop tracking any in-flight job, but keep history
 		setPreviewResult(null)
 		setJobId(null)
-		
+		previewJob.reset()
+
 		toast.success('Studio reset - ready for new design!')
 	}
 
@@ -450,6 +444,11 @@ export default function StudioPage() {
 			<Toaster position="top-center" richColors />
 			<PurchaseSuccessPoller onConfirmed={setCredits} />
 			<PurchaseCreditsDialog open={showPurchaseDialog} onOpenChange={setShowPurchaseDialog} />
+			<RegenerateConfirmDialog
+				open={showRegenerateDialog}
+				onOpenChange={setShowRegenerateDialog}
+				onConfirm={generatePreview}
+			/>
 
 			<div className='mb-8'>
 				<h1 className='text-3xl font-bold'>Tattoo Preview Studio</h1>
@@ -874,11 +873,21 @@ export default function StudioPage() {
 						{isGenerating && !previewResult ? (
 							<div className='w-full space-y-4'>
 								<Skeleton className='w-full h-96' />
+								{/* Indeterminate animation + honest status label derived from
+								    the real prediction lifecycle — never a fake percentage. */}
 								<div className='text-center'>
 									<Loader2 className='w-8 h-8 mx-auto mb-2 animate-spin text-gray-400' />
-									<p className='text-gray-600'>Generating your tattoo preview...</p>
-									<p className='text-sm text-gray-500 mt-1'>This usually takes 30-60 seconds</p>
+									<p className='text-gray-600'>{GENERATION_STATUS_LABEL[previewJob.status] || GENERATION_STATUS_LABEL.running}</p>
+									<p className='text-sm text-gray-500 mt-1'>You can leave this page — your preview keeps generating and appears in My Previews.</p>
 								</div>
+							</div>
+						) : previewJob.status === 'still_running' && !previewResult ? (
+							<div className='text-center text-gray-600'>
+								<Loader2 className='w-8 h-8 mx-auto mb-3 animate-spin text-gray-400' />
+								<p className='font-medium'>Still generating</p>
+								<p className='text-sm text-gray-500 mt-2 max-w-xs mx-auto'>
+									This is taking longer than usual. It will keep running — check My Previews in a bit to see the result.
+								</p>
 							</div>
 						) : previewResult ? (
 							<div className='w-full'>
@@ -902,7 +911,7 @@ export default function StudioPage() {
 										variant='outline'
 										size='sm'
 										className='flex-1'
-										onClick={generatePreview}
+										onClick={handleRegenerate}
 										disabled={isGenerating}
 									>
 										<RotateCw className='mr-2 h-4 w-4' />
@@ -1002,9 +1011,9 @@ export default function StudioPage() {
 								</Button>
 							)}
 							{isGenerating && (
-								<div className='hidden sm:block w-32'>
-									<Progress value={generationProgress} className='h-2' />
-								</div>
+								<span className='hidden sm:block text-sm text-gray-600 max-w-[220px] truncate'>
+									{GENERATION_STATUS_LABEL[previewJob.status]}
+								</span>
 							)}
 							<Button
 								onClick={generatePreview}
@@ -1015,7 +1024,7 @@ export default function StudioPage() {
 								{isGenerating ? (
 									<>
 										<Loader2 className='mr-2 h-4 w-4 animate-spin' />
-										{generationProgress > 0 ? `${generationProgress}%` : 'Generating...'}
+										{previewJob.status === 'queued' ? 'Queued…' : 'Generating…'}
 									</>
 								) : (
 									<>
