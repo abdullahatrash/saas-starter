@@ -8,6 +8,7 @@ import Pricing from "@/components/pricing";
 import PricingWithCheckout from "@/components/pricing-with-checkout";
 import FooterSection from "@/components/footer";
 import CTASection from "@/components/cta-section";
+import ShowcaseGallery from "@/components/showcase-gallery";
 import {
   Comparison,
   ComparisonItem,
@@ -185,6 +186,11 @@ export default async function LandingPage() {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Ink Inspiration Gallery */}
+        <section className="bg-white">
+          <ShowcaseGallery />
         </section>
 
         {/* First CTA Section */}
