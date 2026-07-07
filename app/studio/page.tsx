@@ -138,6 +138,42 @@ export default function StudioPage() {
 		}
 	}, [previewJob.status])
 
+	// The Stripe purchase flow leaves and re-enters /studio as a full
+	// navigation, which would otherwise discard the user's uploads and
+	// placement right after they paid. Persist the working session (the
+	// uploaded Blob URLs survive navigation) and restore it on mount.
+	const SESSION_KEY = 'taatoo:studio-session'
+	const [sessionRestored, setSessionRestored] = useState(false)
+
+	useEffect(() => {
+		try {
+			const raw = sessionStorage.getItem(SESSION_KEY)
+			if (raw) {
+				const saved = JSON.parse(raw)
+				if (typeof saved.bodyImageUrl === 'string') setBodyImageUrl(saved.bodyImageUrl)
+				if (typeof saved.designImageUrl === 'string') setDesignImageUrl(saved.designImageUrl)
+				if (typeof saved.selectedPart === 'string') setSelectedPart(saved.selectedPart)
+				if (typeof saved.selectedVariant === 'string') setSelectedVariant(saved.selectedVariant)
+				if (saved.transform && typeof saved.transform === 'object') setTransform(saved.transform)
+			}
+		} catch {}
+		setSessionRestored(true)
+	}, [])
+
+	useEffect(() => {
+		if (!sessionRestored) return
+		try {
+			if (!bodyImageUrl && !designImageUrl) {
+				sessionStorage.removeItem(SESSION_KEY)
+				return
+			}
+			sessionStorage.setItem(
+				SESSION_KEY,
+				JSON.stringify({ bodyImageUrl, designImageUrl, selectedPart, selectedVariant, transform })
+			)
+		} catch {}
+	}, [sessionRestored, bodyImageUrl, designImageUrl, selectedPart, selectedVariant, transform])
+
 	// File upload hooks for body and design images
 	const [
 		{ files: bodyFiles, isDragging: bodyDragging, errors: bodyErrors },
