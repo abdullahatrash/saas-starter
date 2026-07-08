@@ -43,15 +43,36 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
 	const { job: jobData, bodyPhoto, design } = job[0]
 	const variantParams = jobData.variantParams as any
 
+	// Jobs created before piercing mode existed have no mode; they are tattoos.
+	const isPiercing = variantParams?.mode === 'piercing'
+
+	const styleLabels: Record<string, string> = isPiercing
+		? {
+				as_photo: 'Match Jewelry Photo',
+				gold: 'Gold',
+				silver: 'Silver / Titanium',
+				rose_gold: 'Rose Gold',
+				black: 'Black Metal',
+			}
+		: {
+				black_gray: 'Black & Gray',
+				fine_line: 'Fine Line',
+				watercolor: 'Watercolor',
+				color: 'Full Color',
+			}
+	const styleLabel = styleLabels[variantParams?.variant] ?? (isPiercing ? 'Match Jewelry Photo' : 'Full Color')
+
 	return (
 		<div className='min-h-screen bg-gray-50'>
 			<div className='container mx-auto py-12 px-4'>
 				<div className='max-w-4xl mx-auto'>
 					{/* Header */}
 					<div className='text-center mb-8'>
-						<h1 className='text-3xl font-bold mb-2'>Tattoo Preview</h1>
+						<h1 className='text-3xl font-bold mb-2'>{isPiercing ? 'Piercing Preview' : 'Tattoo Preview'}</h1>
 						<p className='text-gray-600'>
-							See how this design looks as a tattoo
+							{isPiercing
+								? 'See how this jewelry looks as a piercing'
+								: 'See how this design looks as a tattoo'}
 						</p>
 					</div>
 
@@ -72,20 +93,12 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
 							</h2>
 							<dl className='space-y-2'>
 								<div className='flex justify-between'>
-									<dt className='text-gray-600'>Style:</dt>
-									<dd className='font-medium'>
-										{variantParams?.variant === 'black_gray'
-											? 'Black & Gray'
-											: variantParams?.variant === 'fine_line'
-											? 'Fine Line'
-											: variantParams?.variant === 'watercolor'
-											? 'Watercolor'
-											: 'Full Color'}
-									</dd>
+									<dt className='text-gray-600'>{isPiercing ? 'Finish:' : 'Style:'}</dt>
+									<dd className='font-medium'>{styleLabel}</dd>
 								</div>
 								<div className='flex justify-between'>
-									<dt className='text-gray-600'>Body Part:</dt>
-									<dd className='font-medium capitalize'>{bodyPhoto?.part}</dd>
+									<dt className='text-gray-600'>{isPiercing ? 'Placement:' : 'Body Part:'}</dt>
+									<dd className='font-medium capitalize'>{bodyPhoto?.part?.replace(/_/g, ' ')}</dd>
 								</div>
 								{variantParams?.scale && (
 									<div className='flex justify-between'>
@@ -124,9 +137,11 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
 
 					{/* CTA */}
 					<Card className='p-8 text-center bg-gradient-to-r from-purple-50 to-pink-50'>
-						<h3 className='text-xl font-semibold mb-2'>Love this design?</h3>
+						<h3 className='text-xl font-semibold mb-2'>{isPiercing ? 'Love this look?' : 'Love this design?'}</h3>
 						<p className='text-gray-600 mb-6'>
-							See how any tattoo looks on your own skin in seconds
+							{isPiercing
+								? 'See how any piercing looks on you in seconds'
+								: 'See how any tattoo looks on your own skin in seconds'}
 						</p>
 						<div className='flex gap-4 justify-center'>
 							<Button asChild size='lg'>

@@ -8,7 +8,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Loader2, Download, Share2, RotateCw, ZoomIn, Eye, AlertCircle, RefreshCw } from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { track } from '@vercel/analytics'
-import type { BodyPart, TattooVariant } from '@/types/core'
+import type { StudioMode, PreviewPlacement, PreviewVariant } from '@/types/core'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlacementEditor } from '@/components/placement-editor'
 import { renderComposite, DEFAULT_TRANSFORM, type PlacementTransform } from '@/lib/composite'
 import { useFileUpload } from '@/hooks/use-file-upload'
@@ -36,31 +37,113 @@ const GENERATION_STATUS_LABEL: Record<PreviewJobStatus, string> = {
 
 const GENERATION_TOAST_ID = 'generation-status'
 
-const bodyParts: Array<{ value: BodyPart; label: string }> = [
-	{ value: 'upper_arm', label: 'Upper Arm' },
-	{ value: 'forearm', label: 'Forearm' },
-	{ value: 'hand', label: 'Hand' },
-	{ value: 'neck', label: 'Neck' },
-	{ value: 'back', label: 'Back' },
-	{ value: 'chest', label: 'Chest' },
-	{ value: 'shoulder', label: 'Shoulder' },
-	{ value: 'leg', label: 'Leg' },
-	{ value: 'ankle', label: 'Ankle' },
-	{ value: 'wrist', label: 'Wrist' },
-]
-
-const variants: Array<{ value: TattooVariant; label: string }> = [
-	{ value: 'black_gray', label: 'Black & Gray' },
-	{ value: 'color', label: 'Full Color' },
-	{ value: 'fine_line', label: 'Fine Line' },
-	{ value: 'watercolor', label: 'Watercolor' },
-]
+// Everything mode-specific in one place: placements, style options, and copy.
+// The generation pipeline (upload → placement → composite → job) is shared.
+const MODE_CONFIG: Record<
+	StudioMode,
+	{
+		title: string
+		subtitle: string
+		placementHeading: string
+		placements: Array<{ value: PreviewPlacement; label: string }>
+		defaultPlacement: PreviewPlacement
+		styleHeading: string
+		styles: Array<{ value: PreviewVariant; label: string }>
+		defaultStyle: PreviewVariant
+		photoLabel: string
+		photoCta: string
+		designLabel: string
+		designCta: string
+		positionHeading: string
+		customizeHeading: string
+	}
+> = {
+	tattoo: {
+		title: 'Tattoo Preview Studio',
+		subtitle: 'Upload a body photo and design to see how your tattoo will look',
+		placementHeading: 'Body Part',
+		placements: [
+			{ value: 'upper_arm', label: 'Upper Arm' },
+			{ value: 'forearm', label: 'Forearm' },
+			{ value: 'hand', label: 'Hand' },
+			{ value: 'neck', label: 'Neck' },
+			{ value: 'back', label: 'Back' },
+			{ value: 'chest', label: 'Chest' },
+			{ value: 'shoulder', label: 'Shoulder' },
+			{ value: 'leg', label: 'Leg' },
+			{ value: 'ankle', label: 'Ankle' },
+			{ value: 'wrist', label: 'Wrist' },
+		],
+		defaultPlacement: 'forearm',
+		styleHeading: 'Tattoo Style',
+		styles: [
+			{ value: 'black_gray', label: 'Black & Gray' },
+			{ value: 'color', label: 'Full Color' },
+			{ value: 'fine_line', label: 'Fine Line' },
+			{ value: 'watercolor', label: 'Watercolor' },
+		],
+		defaultStyle: 'black_gray',
+		photoLabel: 'Body Photo',
+		photoCta: 'Upload body photo',
+		designLabel: 'Tattoo Design',
+		designCta: 'Upload tattoo design',
+		positionHeading: 'Position Your Design',
+		customizeHeading: 'Customize Your Tattoo',
+	},
+	piercing: {
+		title: 'Piercing Preview Studio',
+		subtitle: 'Upload a photo and jewelry to see how your piercing will look',
+		placementHeading: 'Placement',
+		placements: [
+			{ value: 'ear_lobe', label: 'Ear Lobe' },
+			{ value: 'helix', label: 'Helix' },
+			{ value: 'tragus', label: 'Tragus' },
+			{ value: 'conch', label: 'Conch' },
+			{ value: 'industrial', label: 'Industrial' },
+			{ value: 'nostril', label: 'Nostril' },
+			{ value: 'septum', label: 'Septum' },
+			{ value: 'eyebrow', label: 'Eyebrow' },
+			{ value: 'lip', label: 'Lip' },
+			{ value: 'navel', label: 'Navel' },
+		],
+		defaultPlacement: 'ear_lobe',
+		styleHeading: 'Metal Finish',
+		styles: [
+			{ value: 'as_photo', label: 'Match Jewelry Photo' },
+			{ value: 'gold', label: 'Gold' },
+			{ value: 'silver', label: 'Silver / Titanium' },
+			{ value: 'rose_gold', label: 'Rose Gold' },
+			{ value: 'black', label: 'Black Metal' },
+		],
+		defaultStyle: 'as_photo',
+		photoLabel: 'Photo (ear, nose, face…)',
+		photoCta: 'Upload your photo',
+		designLabel: 'Jewelry Photo',
+		designCta: 'Upload jewelry photo',
+		positionHeading: 'Position Your Jewelry',
+		customizeHeading: 'Customize Your Piercing',
+	},
+}
 
 export default function StudioPage() {
+	const [mode, setMode] = useState<StudioMode>('tattoo')
 	const [bodyImageUrl, setBodyImageUrl] = useState<string | null>(null)
 	const [designImageUrl, setDesignImageUrl] = useState<string | null>(null)
-	const [selectedPart, setSelectedPart] = useState<BodyPart>('forearm')
-	const [selectedVariant, setSelectedVariant] = useState<TattooVariant>('black_gray')
+	const [selectedPart, setSelectedPart] = useState<PreviewPlacement>('forearm')
+	const [selectedVariant, setSelectedVariant] = useState<PreviewVariant>('black_gray')
+
+	const config = MODE_CONFIG[mode]
+
+	// Switching modes keeps the uploads (the photo may well be reusable) but
+	// resets placement and style to that mode's defaults, since the lists are
+	// disjoint between tattoo and piercing.
+	const handleModeChange = (value: string) => {
+		const nextMode = value as StudioMode
+		if (nextMode === mode) return
+		setMode(nextMode)
+		setSelectedPart(MODE_CONFIG[nextMode].defaultPlacement)
+		setSelectedVariant(MODE_CONFIG[nextMode].defaultStyle)
+	}
 	// Visual placement: position/scale/rotation/opacity of the design over the
 	// body photo. Survives a generation round-trip so the user can nudge and
 	// regenerate without re-placing.
@@ -153,6 +236,7 @@ export default function StudioPage() {
 				const saved = JSON.parse(raw)
 				if (typeof saved.bodyImageUrl === 'string') setBodyImageUrl(saved.bodyImageUrl)
 				if (typeof saved.designImageUrl === 'string') setDesignImageUrl(saved.designImageUrl)
+				if (saved.mode === 'tattoo' || saved.mode === 'piercing') setMode(saved.mode)
 				if (typeof saved.selectedPart === 'string') setSelectedPart(saved.selectedPart)
 				if (typeof saved.selectedVariant === 'string') setSelectedVariant(saved.selectedVariant)
 				if (saved.transform && typeof saved.transform === 'object') setTransform(saved.transform)
@@ -170,10 +254,10 @@ export default function StudioPage() {
 			}
 			sessionStorage.setItem(
 				SESSION_KEY,
-				JSON.stringify({ bodyImageUrl, designImageUrl, selectedPart, selectedVariant, transform })
+				JSON.stringify({ mode, bodyImageUrl, designImageUrl, selectedPart, selectedVariant, transform })
 			)
 		} catch {}
-	}, [sessionRestored, bodyImageUrl, designImageUrl, selectedPart, selectedVariant, transform])
+	}, [sessionRestored, mode, bodyImageUrl, designImageUrl, selectedPart, selectedVariant, transform])
 
 	// File upload hooks for body and design images
 	const [
@@ -357,6 +441,7 @@ export default function StudioPage() {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
+					mode,
 					bodyImageUrl,
 					designImageUrl,
 					compositeImageUrl,
@@ -409,7 +494,7 @@ export default function StudioPage() {
 		if (!previewResult) return
 		
 		try {
-			const filename = `tattoo-preview-${jobId || Date.now()}.jpg`
+			const filename = `${mode}-preview-${jobId || Date.now()}.jpg`
 			await downloadImage(previewResult, filename)
 			toast.success(STUDIO_SUCCESS_MESSAGES.IMAGE_DOWNLOADED)
 		} catch (error) {
@@ -447,9 +532,9 @@ export default function StudioPage() {
 			removeDesignFile(designFiles[0].id)
 		}
 		
-		// Reset settings to defaults
-		setSelectedPart('forearm')
-		setSelectedVariant('black_gray')
+		// Reset settings to the current mode's defaults
+		setSelectedPart(config.defaultPlacement)
+		setSelectedVariant(config.defaultStyle)
 		setTransform(DEFAULT_TRANSFORM)
 		setCustomPrompt('')
 		setUseCustomPrompt(false)
@@ -474,9 +559,17 @@ export default function StudioPage() {
 			/>
 
 			<div className='mb-8'>
-				<h1 className='text-3xl font-bold'>Tattoo Preview Studio</h1>
+				<div className='flex flex-wrap items-center gap-4'>
+					<h1 className='text-3xl font-bold'>{config.title}</h1>
+					<Tabs value={mode} onValueChange={handleModeChange}>
+						<TabsList>
+							<TabsTrigger value='tattoo'>Tattoo</TabsTrigger>
+							<TabsTrigger value='piercing'>Piercing</TabsTrigger>
+						</TabsList>
+					</Tabs>
+				</div>
 				<p className='text-gray-600 mt-2'>
-					Upload a body photo and design to see how your tattoo will look
+					{config.subtitle}
 				</p>
 				<a href='/previews' className='text-sm text-blue-600 hover:underline mt-1 inline-block'>My Previews →</a>
 				{credits !== null && (
@@ -514,7 +607,7 @@ export default function StudioPage() {
 						<div className='space-y-4'>
 							{/* Body Photo Upload */}
 							<div>
-								<Label>Body Photo</Label>
+								<Label>{config.photoLabel}</Label>
 								<div className='mt-2'>
 									<div
 										onDragEnter={bodyDragEnter}
@@ -546,7 +639,7 @@ export default function StudioPage() {
 										) : (
 											<div className='flex flex-col items-center'>
 												<Button variant='outline' onClick={openBodyDialog} disabled={isUploadingBody || isUploadingDesign}>
-													Upload body photo
+													{config.photoCta}
 												</Button>
 												<span className='mt-2 text-xs text-gray-500'>
 													or drag & drop
@@ -563,9 +656,9 @@ export default function StudioPage() {
 								</div>
 							</div>
 
-							{/* Design Upload */}
+							{/* Design / jewelry upload */}
 							<div>
-								<Label>Tattoo Design</Label>
+								<Label>{config.designLabel}</Label>
 								<div className='mt-2'>
 									<div
 										onDragEnter={designDragEnter}
@@ -578,7 +671,7 @@ export default function StudioPage() {
 										<input
 											{...getDesignInputProps()}
 											className='sr-only'
-											aria-label='Upload tattoo design'
+											aria-label={config.designCta}
 										/>
 										{designImageUrl ? (
 											<img
@@ -597,7 +690,7 @@ export default function StudioPage() {
 										) : (
 											<div className='flex flex-col items-center'>
 												<Button variant='outline' onClick={openDesignDialog} disabled={isUploadingBody || isUploadingDesign}>
-													Upload tattoo design
+													{config.designCta}
 												</Button>
 												<span className='mt-2 text-xs text-gray-500'>
 													or drag & drop
@@ -620,13 +713,13 @@ export default function StudioPage() {
 					<div className='lg:hidden'>
 						<Accordion type="single" collapsible defaultValue="params">
 							<AccordionItem value="params">
-								<AccordionTrigger>Customize Your Tattoo</AccordionTrigger>
+								<AccordionTrigger>{config.customizeHeading}</AccordionTrigger>
 								<AccordionContent className='space-y-4'>
-									{/* Body Part Selection */}
+									{/* Placement Selection */}
 									<div>
-										<Label className='mb-3 block'>Body Part</Label>
+										<Label className='mb-3 block'>{config.placementHeading}</Label>
 										<div className='grid grid-cols-3 gap-2'>
-											{bodyParts.map((part) => (
+											{config.placements.map((part) => (
 												<Button
 													key={part.value}
 													variant={selectedPart === part.value ? 'default' : 'outline'}
@@ -641,9 +734,9 @@ export default function StudioPage() {
 
 									{/* Style Selection */}
 									<div>
-										<Label className='mb-3 block'>Tattoo Style</Label>
-										<RadioGroup value={selectedVariant} onValueChange={(v) => setSelectedVariant(v as TattooVariant)}>
-											{variants.map((variant) => (
+										<Label className='mb-3 block'>{config.styleHeading}</Label>
+										<RadioGroup value={selectedVariant} onValueChange={(v) => setSelectedVariant(v as PreviewVariant)}>
+											{config.styles.map((variant) => (
 												<div key={variant.value} className='flex items-center space-x-2'>
 													<RadioGroupItem value={variant.value} id={variant.value} />
 													<Label htmlFor={variant.value}>{variant.label}</Label>
@@ -658,11 +751,11 @@ export default function StudioPage() {
 
 					{/* Desktop controls */}
 					<div className='hidden lg:block space-y-6'>
-						{/* Body Part Selection */}
+						{/* Placement Selection */}
 						<Card className='p-6'>
-							<h2 className='text-xl font-semibold mb-4'>Body Part</h2>
+							<h2 className='text-xl font-semibold mb-4'>{config.placementHeading}</h2>
 							<div className='grid grid-cols-3 gap-2'>
-								{bodyParts.map((part) => (
+								{config.placements.map((part) => (
 									<Button
 										key={part.value}
 										variant={selectedPart === part.value ? 'default' : 'outline'}
@@ -677,9 +770,9 @@ export default function StudioPage() {
 
 						{/* Style Selection */}
 						<Card className='p-6'>
-							<h2 className='text-xl font-semibold mb-4'>Tattoo Style</h2>
-							<RadioGroup value={selectedVariant} onValueChange={(v) => setSelectedVariant(v as TattooVariant)}>
-								{variants.map((variant) => (
+							<h2 className='text-xl font-semibold mb-4'>{config.styleHeading}</h2>
+							<RadioGroup value={selectedVariant} onValueChange={(v) => setSelectedVariant(v as PreviewVariant)}>
+								{config.styles.map((variant) => (
 									<div key={variant.value} className='flex items-center space-x-2'>
 										<RadioGroupItem value={variant.value} id={variant.value} />
 										<Label htmlFor={variant.value}>{variant.label}</Label>
@@ -737,7 +830,7 @@ export default function StudioPage() {
 					    and regenerate without re-placing. */}
 					{bodyImageUrl && designImageUrl && (
 						<Card className='p-6'>
-							<h2 className='text-xl font-semibold mb-4'>Position Your Design</h2>
+							<h2 className='text-xl font-semibold mb-4'>{config.positionHeading}</h2>
 							<PlacementEditor
 								bodyImageUrl={bodyImageUrl}
 								designImageUrl={designImageUrl}
@@ -773,7 +866,7 @@ export default function StudioPage() {
 								<ImageZoom>
 									<img
 										src={previewResult}
-										alt='Tattoo Preview'
+										alt='Preview result'
 										className='w-full h-auto rounded-lg cursor-zoom-in'
 									/>
 								</ImageZoom>
@@ -801,7 +894,7 @@ export default function StudioPage() {
 						) : (
 							<div className='text-center text-gray-500'>
 								<ZoomIn className='w-16 h-16 mx-auto mb-4 text-gray-300' />
-								<p>Your tattoo preview will appear here</p>
+								<p>Your {mode} preview will appear here</p>
 								<p className='text-sm mt-2'>Upload images and click Generate to start</p>
 							</div>
 						)}

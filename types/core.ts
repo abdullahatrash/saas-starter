@@ -1,4 +1,8 @@
-// Core types for tattoo preview system
+// Core types for tattoo & piercing preview system
+
+// Which kind of preview the studio is generating. Tattoo overlays a design on
+// skin; piercing overlays a jewelry photo on a placement like an ear or nose.
+export type StudioMode = 'tattoo' | 'piercing'
 
 export type BodyPart =
 	| 'upper_arm'
@@ -15,6 +19,28 @@ export type BodyPart =
 	| 'other'
 
 export type TattooVariant = 'black_gray' | 'color' | 'fine_line' | 'watercolor'
+
+export type PiercingPlacement =
+	| 'ear_lobe'
+	| 'helix'
+	| 'tragus'
+	| 'conch'
+	| 'industrial'
+	| 'nostril'
+	| 'septum'
+	| 'eyebrow'
+	| 'lip'
+	| 'navel'
+	| 'other'
+
+// Metal finish for piercing previews. 'as_photo' keeps whatever metal the
+// uploaded jewelry photo shows; the rest override it.
+export type JewelryFinish = 'as_photo' | 'gold' | 'silver' | 'rose_gold' | 'black'
+
+// Placement/style unions across both studio modes. The DB stores these as
+// plain strings, so widening here needs no migration.
+export type PreviewPlacement = BodyPart | PiercingPlacement
+export type PreviewVariant = TattooVariant | JewelryFinish
 
 export type PreviewStatus = 'queued' | 'running' | 'succeeded' | 'failed'
 

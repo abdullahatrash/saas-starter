@@ -4,9 +4,20 @@ import { previewJobs, bodyPhotos, designs, studios, teamMembers } from '@/lib/db
 import { getUser } from '@/lib/db/queries'
 import { consumeCredits, getUserCredits, refundCreditOnce } from '@/lib/entitlements'
 import { createPrediction } from '@/lib/replicate'
-import { buildTattooPrompt, buildCompositePrompt } from '@/lib/prompt'
+import {
+	buildTattooPrompt,
+	buildCompositePrompt,
+	buildPiercingCompositePrompt,
+	buildPiercingPrompt,
+} from '@/lib/prompt'
 import { eq, and } from 'drizzle-orm'
-import type { TattooPromptParams, BodyPart, TattooVariant } from '@/types/core'
+import type {
+	TattooPromptParams,
+	BodyPart,
+	TattooVariant,
+	PiercingPlacement,
+	JewelryFinish,
+} from '@/types/core'
 
 export const runtime = 'nodejs'
 
@@ -30,8 +41,11 @@ export async function POST(request: NextRequest) {
 			// the chosen transform). When present, it becomes the image the model
 			// works from and the prompt switches to the composite variant.
 			compositeImageUrl,
+			// 'tattoo' (default) or 'piercing' — selects the prompt family and is
+			// recorded in variantParams so the share page can label the preview.
+			mode = 'tattoo',
 			part,
-			variant = 'black_gray',
+			variant = mode === 'piercing' ? 'as_photo' : 'black_gray',
 			scale = 1.0,
 			rotationDeg = 0,
 			opacity = 1.0,
@@ -127,6 +141,14 @@ export async function POST(request: NextRequest) {
 		let prompt: string
 		if (customPrompt && customPrompt.trim()) {
 			prompt = customPrompt
+		} else if (mode === 'piercing') {
+			const piercingParams = {
+				placement: part as PiercingPlacement,
+				finish: variant as JewelryFinish,
+			}
+			prompt = compositeImageUrl
+				? buildPiercingCompositePrompt(piercingParams)
+				: buildPiercingPrompt(piercingParams)
 		} else if (compositeImageUrl) {
 			prompt = buildCompositePrompt({
 				part: part as BodyPart,
@@ -155,6 +177,7 @@ export async function POST(request: NextRequest) {
 				prompt,
 				seed: seed || Math.floor(Math.random() * 1000000),
 				variantParams: {
+					mode,
 					variant,
 					scale,
 					rotationDeg,

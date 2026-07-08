@@ -7,6 +7,7 @@ import {
   User as UserIcon,
   LayoutDashboard,
   Palette,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useRef, Suspense } from "react";
@@ -240,6 +241,17 @@ export default function HeroSection() {
           <div className="relative mx-auto max-w-6xl px-6 py-24 w-full">
             <div className="lg:flex lg:items-center lg:gap-12">
               <div className="relative z-10 mx-auto max-w-2xl text-center lg:ml-0 lg:w-2/3 lg:max-w-none lg:text-left">
+                {/* Piercing launch announcement */}
+                <Link
+                  href={user ? "/studio" : "/sign-up"}
+                  className="group mb-6 inline-flex items-center gap-2 rounded-full border border-yellow-400/40 bg-yellow-400/10 px-4 py-1.5 text-sm font-bold uppercase tracking-wider text-yellow-400 backdrop-blur-sm transition-colors hover:bg-yellow-400/20"
+                >
+                  <span className="rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-black text-black">
+                    New
+                  </span>
+                  <span>Piercing previews are here</span>
+                  <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-1" />
+                </Link>
                 <h1 className="text-5xl md:text-6xl xl:text-7xl font-black uppercase leading-none">
                   <span className="text-white">See Your Tattoo</span>
                   <br />
